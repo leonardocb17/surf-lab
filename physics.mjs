@@ -2,9 +2,10 @@ export const DT=0.01;
 export const GRAVITY=800;
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const angleDelta=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
+export const isFlightCourse=course=>course.mode==='sky'||course.mode==='lateral';
 export function createCourse(mirrored=false,mode='basic',destination='island'){
   const mirror=mirrored?-1:1;
-  if(mode==='sky')return createSkyCourse(mirror,destination);
+  if(mode==='sky'||mode==='lateral')return createSkyCourse(mirror,destination,mode);
   if(mode==='abyss'){
     const layout=[[0,1800,2400,560],[3400,5100,1600,440],[6900,8600,800,420],[10550,12350,0,400],[14400,16300,-800,440]];
     const course=layout.map(([x0,x1,c,width],i)=>{
@@ -22,7 +23,7 @@ export function rampHeight(r,y,x=r.x0){
   if(r.profile){const surface=r.profile.find(p=>x<=p.x1)||r.profile.at(-1);return rampHeight(surface,y,x);}
   return r.k*y+r.c+(r.m||0)*(x-r.x0);
 }
-function createSkyCourse(mirror,destination){
+function createSkyCourse(mirror,destination,mode='sky'){
   let x=0,z=8000;
   const profile=[];
   for(const [length,m] of [[6000,-.8],[400,-.65],[400,-.45],[400,-.25],[400,0],[400,.25],[400,.5],[400,.75],[400,1]]){
@@ -31,17 +32,22 @@ function createSkyCourse(mirror,destination){
     x+=length;z+=m*length;
   }
   const launch={...profile[0],x1:x,profile,name:'Lançador'};
-  const pads=[
+  const layout=mode==='lateral'?[
+    {id:2,key:'left',name:'Ilha à esquerda',x0:13500,x1:16500,y0:-7000*mirror,y1:-5200*mirror,c:200},
+    {id:3,key:'right',name:'Ilha à direita',x0:14500,x1:17500,y0:6000*mirror,y1:7800*mirror,c:500},
+    {id:4,key:'wide',name:'Arco extremo',x0:11000,x1:14000,y0:-9000*mirror,y1:-7200*mirror,c:-500}
+  ]:[
     {id:2,key:'tower',name:'Mirante',x0:17500,x1:20300,y0:300*mirror,y1:2100*mirror,c:1100},
     {id:3,key:'island',name:'Ilha distante',x0:17200,x1:20500,y0:-1600*mirror,y1:200*mirror,c:500},
     {id:4,key:'coast',name:'Costa remota',x0:16700,x1:20000,y0:-3900*mirror,y1:-1700*mirror,c:200}
-  ].map(r=>({...r,y0:Math.min(r.y0,r.y1),y1:Math.max(r.y0,r.y1),k:0,side:mirror,n:{x:0,y:0,z:1},goal:true}));
-  const course=[launch,...pads];course.mode='sky';course.surfaces=[...profile,...pads];
-  course.goalId=(pads.find(p=>p.key===destination)||pads[1]).id;return course;
+  ];
+  const pads=layout.map(r=>({...r,y0:Math.min(r.y0,r.y1),y1:Math.max(r.y0,r.y1),k:0,side:mirror,n:{x:0,y:0,z:1},goal:true}));
+  const course=[launch,...pads];course.mode=mode;course.surfaces=[...profile,...pads];
+  course.goalId=(pads.find(p=>p.key===destination)||pads[mode==='lateral'?0:1]).id;return course;
 }
 export function spawn(course,index=0){
   const r=course[index],y=350*r.side;
-  if(course.mode==='sky'){
+  if(isFlightCourse(course)){
     const x=100,sy=650*r.side,vx=800,vy=0;
     return {x,y:sy,z:rampHeight(r,sy,x)+.02,vx,vy,vz:r.profile[0].m*vx,yaw:0,pitch:-.28,time:0,contact:1,progress:1,outcome:null,airGain:0};
   }
@@ -72,7 +78,7 @@ export function step(s,input,course,dt=DT){
     }
     if(!hit){s.x=end.x;s.y=end.y;s.z=end.z;break;}
     const {r,f}=hit;s.x=hit.x+r.n.x*.002;s.y=hit.y+r.n.y*.002;s.z=hit.z+r.n.z*.002;clipVelocity(s,r.n);s.contact=r.id;left*=1-f;
-    if(course.mode==='sky'&&r.goal){s.progress=r.id;s.outcome='won';s.landedId=r.id;break;}
+    if(isFlightCourse(course)&&r.goal){s.progress=r.id;s.outcome='won';s.landedId=r.id;break;}
     if(r.id===s.progress+1)s.progress=r.id;
     else if(r.id>s.progress+1)s.outcome='missed';
   }
@@ -80,14 +86,14 @@ export function step(s,input,course,dt=DT){
   for(const r of course.surfaces||course){const d=s.z-rampHeight(r,s.y,s.x);if(s.x>=r.x0&&s.x<=r.x1&&s.y>=r.y0&&s.y<=r.y1&&d>=-.01&&d<.08){s.contact=r.id;break;}}
   const last=course.at(-1);
   if(s.progress===course.length&&s.contact===last.id&&s.x>last.x1-90)s.outcome='won';
-  const limitX=course.mode==='sky'?Math.max(...course.map(r=>r.x1))+1500:last.x1+500;
-  if(s.z<last.c-(course.mode==='basic'?650:1200)||Math.abs(s.y)>(course.mode==='sky'?12000:2400)||s.x< -600||s.x>limitX||s.time>(course.mode==='basic'?60:90))s.outcome='fell';
+  const limitX=isFlightCourse(course)?Math.max(...course.map(r=>r.x1))+1500:last.x1+500;
+  if(s.z<last.c-(course.mode==='basic'?650:1200)||Math.abs(s.y)>(isFlightCourse(course)?12000:2400)||s.x< -600||s.x>limitX||s.time>(course.mode==='basic'?60:90))s.outcome='fell';
   return s;
 }
 const DEFAULT={launchDistance:550,launchVy:180,cruise:100,landingY:150};
 export function policy(s,course,p=DEFAULT){
   if(s.outcome)return {input:0,yaw:s.yaw};
-  if(course.mode==='sky')return skyPolicy(s,course);
+  if(isFlightCourse(course))return skyPolicy(s,course);
   const advanced=course.mode==='abyss';
   if(s.contact){
     if(advanced)return flightPolicy(s,course,p);
@@ -158,7 +164,7 @@ for(const launchDistance of [200,350,500])for(const launchVy of [60,100,150])for
 const FLIGHT_CANDIDATES=[];
 for(const launchDistance of [600,900,1200])for(const launchVy of [180,280,380])for(const landingY of [170,270])FLIGHT_CANDIDATES.push({launchDistance,launchVy,cruise:140,landingY});
 export function recommend(state,course,{horizon=course.mode==='abyss'?4:2.8,trace=true}={}){
-  if(course.mode==='sky'){
+  if(isFlightCourse(course)){
     const s={...state},path=[{x:s.x,y:s.y,z:s.z}];let landingTime=null,landingPoint=null;
     for(let i=0;i<1200&&!s.outcome;i++){
       const a=policy(s,course);step(s,applyControl(s,a),course);

@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Treine surf em primeira pessoa: desça, ganhe embalo e voe por cerca de seis segundos até destinos distantes, com demonstração e guia de strafe.">
+  <meta name="description" content="Treine grandes deslocamentos laterais no surf, com alvos dos dois lados, mapa da curva, demonstração e guia de A/D e mouse.">
   <title>Surf Lab · treino de movimento</title>
-  <link rel="stylesheet" href="./style.css?v=20261028-ski">
+  <link rel="stylesheet" href="./style.css?v=20261028-arcos">
 </head>
 <body>
   <main id="game">
@@ -24,11 +24,13 @@
       <p id="technique-copy">Ganhe embalo antes de subir a face.</p>
       <div class="flight-stats"><div><b id="air-time">0,00 s</b><small>neste voo</small></div><div><b id="air-gain">0 u/s</b><small>desde a saída</small></div><div><b id="launch-vz">—</b><small>saída vertical</small></div></div>
       <div id="long-flight-stats" class="long-flight-stats" hidden><div><span>Distância neste voo</span><b id="flight-distance">0 u</b></div><div><span>Pouso previsto em</span><b id="landing-eta">—</b></div><div><span>Pico de velocidade total</span><b id="peak-speed">0 u/s</b></div></div>
+      <div id="lateral-stats" class="long-flight-stats" hidden><div><span>Deslocamento lateral</span><b id="lateral-distance">0 u</b></div><div><span>Lateral até o centro do alvo</span><b id="lateral-remaining">—</b></div></div>
       <div class="sync-label"><span id="sync-label">Aceleração no ar</span><b id="sync-value">—</b></div>
       <div class="sync-meter"><i id="sync-fill"></i></div>
       <div class="flight-legend"><span>━ Com guia</span><span>┄ Sem A/D</span></div>
       <p class="gravity-note">A/D dão alcance. A altura da saída e o impulso vertical dão tempo no ar.</p>
     </aside>
+    <aside id="route-panel" class="route-panel" hidden aria-label="Mapa do deslocamento lateral"><span class="eyebrow">SEU ARCO VISTO DE CIMA</span><p>← Esquerda · Frente ↑ · Direita →</p><canvas id="route-map" width="520" height="410" aria-label="Posição do jogador, alvos laterais e previsão da curva"></canvas><div><span>━ Guia</span><span>━ Você</span><span>□ Alvo</span></div><small>Referência: saída da rampa · H oculta</small></aside>
     <div class="bottom-hud">
       <div class="input-hud"><span class="eyebrow">VOCÊ</span><div class="key-row"><kbd id="key-a">A</kbd><kbd id="key-d">D</kbd></div><small id="input-note">A / D para deslizar</small></div>
       <div class="speed-hud"><span id="speed">612</span><span class="speed-unit">u/s<small>horizontal</small></span><div id="vertical">↓ 150 u/s vertical</div></div>
@@ -43,7 +45,7 @@
         <div class="menu-actions"><button id="play" class="primary">Jogar em tela cheia <span>↗</span></button><button id="demo" class="secondary">Ver demonstração</button></div>
         <p class="error" id="error" role="alert" hidden></p>
         <div class="settings">
-          <label class="course-choice">Fase<select id="course-select"><option value="sky">Voo livre · descida e voo estilo ski</option><option value="abyss">Abismo · saltos longos · avançado</option><option value="basic">Fundamentos · percurso original · 6 rampas</option></select></label>
+          <label class="course-choice">Fase<select id="course-select"><option value="lateral">Arcos laterais · alvos longe dos dois lados</option><option value="sky">Voo livre · descida e voo estilo ski</option><option value="abyss">Abismo · saltos longos · avançado</option><option value="basic">Fundamentos · percurso original · 6 rampas</option></select></label>
           <label class="course-choice" id="destination-choice" hidden>Onde você quer pousar?<select id="destination"><option value="island">Ilha distante · cruzar o vale</option><option value="tower">Mirante · destino elevado</option><option value="coast">Costa remota · curva longa à esquerda</option></select></label>
           <label>Ritmo<select id="rate"><option value="1">Normal · 1×</option><option value="0.5">Treino · 0,5×</option><option value="0.25">Detalhe · 0,25×</option></select></label>
           <label>Sensibilidade <output id="sensitivity-value">0,14° / px</output><input id="sensitivity" type="range" min="0.05" max="0.3" step="0.01" value="0.14"></label>
@@ -54,12 +56,13 @@
         <div class="menu-bottom"><button id="restart" class="text-button">Recomeçar o percurso</button><span>Física simplificada do GoldSrc</span></div>
         <details id="flight-help"><summary>Como alcançar a próxima rampa?</summary><ol><li><b>Embalo:</b> use a parte baixa da face antes da saída, preservando velocidade.</li><li><b>Saída subindo:</b> suba a face perto da borda. A velocidade vertical positiva cria o arco do salto.</li><li><b>Strafe aéreo:</b> A + mouse suave à esquerda, ou D + mouse suave à direita. Acompanhe o guia e a barra de aceleração; virar demais pode frear.</li><li><b>Recepção:</b> planeje a curva cedo e alivie o giro para encostar na face da próxima rampa. Troque A/D quando o guia pedir.</li></ol><p>Olhar para cima não gera sustentação. A gravidade continua em 800 u/s²; strafe muda o alcance e a direção horizontal. Soltar as teclas preserva a velocidade horizontal que você já tem.</p></details>
         <details><summary>Por que dá para ficar tanto tempo no ar?</summary><p>No Voo livre, a descida gera embalo e a curva final redireciona a velocidade para cima. Você sai alto e com impulso vertical, sobe por alguns segundos e depois cai por mais alguns. Ao mesmo tempo, a velocidade horizontal leva você muito longe. O strafe ajuda a escolher a direção e a preservar ou ganhar velocidade, sem desligar a gravidade.</p><p>Esta fase é um percurso original inspirado na sensação dos grandes saltos do surf_ski_2; não é uma reprodução do mapa. A velocidade total inclui a componente vertical, enquanto o mostrador principal informa apenas a horizontal.</p></details>
-        <details><summary>Como funciona o guia?</summary><p>Projeta os movimentos futuros na física deste treino. Fundamentos e Abismo comparam alternativas; Voo livre prevê uma curva até o destino escolhido. Verde: previsão com o guia. Laranja: previsão sem A/D a partir do mesmo instante. As cores não prometem um pouso garantido. A barra mede ganho de velocidade horizontal em relação ao melhor ganho de um passo, não a qualidade do pouso.</p><p>Simulação simplificada inspirada no GoldSrc, com airaccelerate 100 e colisões por ponto. Não reproduz o corpo do jogador nem todas as configurações de um servidor CS 1.6. <a href="https://github.com/ValveSoftware/halflife/blob/master/pm_shared/pm_shared.c" target="_blank" rel="noopener noreferrer">Referência: movimento do Half-Life SDK, Valve.</a></p></details>
+        <details><summary>Como deslocar tanto para o lado sem cair?</summary><p>Comece a curva logo após sair da rampa. Use A com um giro suave à esquerda, ou D com um giro suave à direita. Acompanhe o ponto verde; mirar de uma vez na ilha pode frear em vez de produzir um arco eficiente.</p><p>O mapa mostra a curva prevista em verde e o caminho que você fez em branco. Deslocamento lateral é a distância para o lado desde a saída, medida no eixo original da rampa. O tempo de queda continua sendo limitado pela altura e pelo impulso vertical; o strafe redireciona a velocidade horizontal.</p></details>
+        <details><summary>Como funciona o guia?</summary><p>Projeta os movimentos futuros na física deste treino. Fundamentos e Abismo comparam alternativas; Voo livre e Arcos laterais preveem uma curva até o destino escolhido. Verde: previsão com o guia. Laranja: previsão sem A/D a partir do mesmo instante. As cores não prometem um pouso garantido. A barra mede ganho de velocidade horizontal em relação ao melhor ganho de um passo, não a qualidade do pouso.</p><p>Simulação simplificada inspirada no GoldSrc, com airaccelerate 100 e colisões por ponto. Não reproduz o corpo do jogador nem todas as configurações de um servidor CS 1.6. <a href="https://github.com/ValveSoftware/halflife/blob/master/pm_shared/pm_shared.c" target="_blank" rel="noopener noreferrer">Referência: movimento do Half-Life SDK, Valve.</a></p></details>
       </div>
     </section>
     <div id="toast" class="toast" role="status" hidden></div>
     <div id="loading" class="loading">Preparando o percurso…</div>
   </main>
-  <script type="module" src="./game.mjs?v=20261028-ski"></script>
+  <script type="module" src="./game.mjs?v=20261028-arcos"></script>
 </body>
 </html>
