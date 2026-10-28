@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Treine surf em primeira pessoa. Encare os saltos longos do Abismo com um guia de strafe aéreo, telemetria de voo e demonstração.">
   <title>Surf Lab · treino de movimento</title>
-  <link rel="stylesheet" href="./style.css?v=20261028-flight">
+  <link rel="stylesheet" href="./style.css?v=20261028-ski">
 </head>
 <body>
   <main id="game">
@@ -23,6 +23,7 @@
       <strong id="technique-title">Prepare a saída</strong>
       <p id="technique-copy">Ganhe embalo antes de subir a face.</p>
       <div class="flight-stats"><div><b id="air-time">0,00 s</b><small>neste voo</small></div><div><b id="air-gain">0 u/s</b><small>desde a saída</small></div><div><b id="launch-vz">—</b><small>saída vertical</small></div></div>
+      <div id="long-flight-stats" class="long-flight-stats" hidden><div><span>Distância neste voo</span><b id="flight-distance">0 u</b></div><div><span>Pouso previsto em</span><b id="landing-eta">—</b></div><div><span>Pico de velocidade total</span><b id="peak-speed">0 u/s</b></div></div>
       <div class="sync-label"><span id="sync-label">Aceleração no ar</span><b id="sync-value">—</b></div>
       <div class="sync-meter"><i id="sync-fill"></i></div>
       <div class="flight-legend"><span>━ Com guia</span><span>┄ Sem A/D</span></div>
@@ -42,7 +43,8 @@
         <div class="menu-actions"><button id="play" class="primary">Jogar em tela cheia <span>↗</span></button><button id="demo" class="secondary">Ver demonstração</button></div>
         <p class="error" id="error" role="alert" hidden></p>
         <div class="settings">
-          <label class="course-choice">Fase<select id="course-select"><option value="abyss">Abismo · saltos longos · avançado</option><option value="basic">Fundamentos · percurso original · 6 rampas</option></select></label>
+          <label class="course-choice">Fase<select id="course-select"><option value="sky">Voo livre · descida e voo estilo ski</option><option value="abyss">Abismo · saltos longos · avançado</option><option value="basic">Fundamentos · percurso original · 6 rampas</option></select></label>
+          <label class="course-choice" id="destination-choice" hidden>Onde você quer pousar?<select id="destination"><option value="island">Ilha distante · cruzar o vale</option><option value="tower">Mirante · destino elevado</option><option value="coast">Costa remota · curva longa à esquerda</option></select></label>
           <label>Ritmo<select id="rate"><option value="1">Normal · 1×</option><option value="0.5">Treino · 0,5×</option><option value="0.25">Detalhe · 0,25×</option></select></label>
           <label>Sensibilidade <output id="sensitivity-value">0,14° / px</output><input id="sensitivity" type="range" min="0.05" max="0.3" step="0.01" value="0.14"></label>
           <label class="check"><input id="guide-toggle" type="checkbox" checked> Mostrar guia e previsão</label>
@@ -51,12 +53,13 @@
         <div class="menu-controls"><span><kbd>A</kbd><kbd>D</kbd> movimento</span><span><kbd>R</kbd> checkpoint</span><span><kbd>Shift</kbd> + <kbd>R</kbd> início</span><span><kbd>Esc</kbd> soltar mouse</span></div>
         <div class="menu-bottom"><button id="restart" class="text-button">Recomeçar o percurso</button><span>Física simplificada do GoldSrc</span></div>
         <details id="flight-help"><summary>Como alcançar a próxima rampa?</summary><ol><li><b>Embalo:</b> use a parte baixa da face antes da saída, preservando velocidade.</li><li><b>Saída subindo:</b> suba a face perto da borda. A velocidade vertical positiva cria o arco do salto.</li><li><b>Strafe aéreo:</b> A + mouse suave à esquerda, ou D + mouse suave à direita. Acompanhe o guia e a barra de aceleração; virar demais pode frear.</li><li><b>Recepção:</b> planeje a curva cedo e alivie o giro para encostar na face da próxima rampa. Troque A/D quando o guia pedir.</li></ol><p>Olhar para cima não gera sustentação. A gravidade continua em 800 u/s²; strafe muda o alcance e a direção horizontal. Soltar as teclas preserva a velocidade horizontal que você já tem.</p></details>
+        <details><summary>Por que dá para ficar tanto tempo no ar?</summary><p>No Voo livre, a descida gera embalo e a curva final redireciona a velocidade para cima. Você sai alto e com impulso vertical, sobe por alguns segundos e depois cai por mais alguns. Ao mesmo tempo, a velocidade horizontal leva você muito longe. O strafe ajuda a escolher a direção e a preservar ou ganhar velocidade, sem desligar a gravidade.</p><p>Esta fase é um percurso original inspirado na sensação dos grandes saltos do surf_ski_2; não é uma reprodução do mapa. A velocidade total inclui a componente vertical, enquanto o mostrador principal informa apenas a horizontal.</p></details>
         <details><summary>Como funciona o guia?</summary><p>Compara movimentos futuros na física deste treino e indica a melhor opção simulada para avançar sem cair, preservando velocidade. Verde: previsão com o guia. Laranja: previsão sem A/D a partir do mesmo instante. As cores não prometem um pouso garantido. A barra mede ganho de velocidade horizontal em relação ao melhor ganho de um passo, não a qualidade do pouso.</p><p>Simulação simplificada inspirada no GoldSrc, com airaccelerate 100 e colisões por ponto. Não reproduz o corpo do jogador nem todas as configurações de um servidor CS 1.6. <a href="https://github.com/ValveSoftware/halflife/blob/master/pm_shared/pm_shared.c" target="_blank" rel="noopener noreferrer">Referência: movimento do Half-Life SDK, Valve.</a></p></details>
       </div>
     </section>
     <div id="toast" class="toast" role="status" hidden></div>
     <div id="loading" class="loading">Preparando o percurso…</div>
   </main>
-  <script type="module" src="./game.mjs?v=20261028-flight"></script>
+  <script type="module" src="./game.mjs?v=20261028-ski"></script>
 </body>
 </html>

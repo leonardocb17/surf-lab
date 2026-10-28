@@ -1,16 +1,19 @@
 import * as THREE from './vendor/three.module.min.js';
-import {DT,GRAVITY,clamp,angleDelta,createCourse,rampHeight,spawn,step,policy,applyControl,recommend,coastPrediction,airMetrics} from './physics.mjs?v=20261028-flight';
+import {DT,GRAVITY,clamp,angleDelta,createCourse,rampHeight,spawn,step,policy,applyControl,recommend,coastPrediction,airMetrics} from './physics.mjs?v=20261028-ski';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
 
 const $=id=>document.getElementById(id);
 const canvas=$('view'),menu=$('menu'),error=$('error');
 const held={a:false,d:false};
 const requestedCourse=new URLSearchParams(location.search).get('fase');
-let courseMode=requestedCourse==='fundamentos'?'basic':'abyss';
-let course=createCourse(false,courseMode),state=spawn(course),active=false,demo=false,checkpoint=0;
+let courseMode=requestedCourse==='fundamentos'?'basic':requestedCourse==='abismo'?'abyss':'sky';
+let destination=new URLSearchParams(location.search).get('destino')||'island';
+let course=createCourse(false,courseMode,destination),state=spawn(course),active=false,demo=false,checkpoint=0;
 let accumulator=0,lastFrame=null,physicsCount=0,guide=null,guideVisible=true;
 let rate=1,sensitivity=.14*Math.PI/180,actualInput=0,toastUntil=0,lastProgress=1;
 let flight=null,lastFlight=null,coast=null,techniquesVisible=true,airFeedback=null;
+let peakSpeed=0;
+const goal=()=>course.find(r=>r.id===course.goalId);
 const format=(n,digits=0)=>n.toLocaleString('pt-BR',{minimumFractionDigits:digits,maximumFractionDigits:digits});
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
@@ -40,7 +43,7 @@ function quad(points,material,uvs=null){
 function labelSprite(text,caption='RAMPA'){
   const c=document.createElement('canvas');c.width=256;c.height=128;const p=c.getContext('2d');
   p.fillStyle='#102637';p.fillRect(4,4,248,120);p.strokeStyle='#6e9aad';p.lineWidth=2;p.strokeRect(4,4,248,120);
-  p.textAlign='center';p.fillStyle='#e8f3f6';p.font=`500 ${text.length>3?40:60}px Segoe UI,Arial`;p.fillText(text,128,77);p.fillStyle='#8caaba';p.font='16px Segoe UI,Arial';p.fillText(caption,128,106);
+  p.textAlign='center';p.fillStyle='#e8f3f6';p.font=`500 ${text.length>3?40:60}px Segoe UI,Arial`;p.fillText(text,128,77,230);p.fillStyle='#8caaba';p.font='16px Segoe UI,Arial';p.fillText(caption,128,106,230);
   const map=new THREE.CanvasTexture(c);map.colorSpace=THREE.SRGBColorSpace;const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map,transparent:true}));sprite.scale.set(180,90,1);return sprite;
 }
 function buildCourse(){
@@ -52,18 +55,24 @@ function buildCourse(){
     levelGroup.remove(child);
   }
   targets.length=0;
-  floorZ=course.at(-1).c-1300;floor.position.set((course.at(-1).x1)/2,0,floorZ);grid.position.set(floor.position.x,0,floorZ+1);
-  const sky=courseMode==='abyss'?0x161f36:0x142635;renderer.setClearColor(sky);scene.fog.color.setHex(sky);
-  for(const r of course){
-  const a=[r.x0,r.y0,rampHeight(r,r.y0)],b=[r.x1,r.y0,rampHeight(r,r.y0)],c=[r.x1,r.y1,rampHeight(r,r.y1)],d=[r.x0,r.y1,rampHeight(r,r.y1)];
-  const topMaterial=new THREE.MeshStandardMaterial({map:texture,color:r.id%2?0x7895a7:0x8d99a0,roughness:.92,side:THREE.DoubleSide});
-  const top=quad([a,b,c,d],topMaterial,[[0,0],[13.5,0],[13.5,7.2],[0,7.2]]);
-  const base=r.c-70,lowA=[r.x0,r.y0,base],lowB=[r.x1,r.y0,base],lowC=[r.x1,r.y1,base],lowD=[r.x0,r.y1,base];
+  floorZ=course.at(-1).c-1300;floor.position.set(Math.max(...course.map(r=>r.x1))/2,0,floorZ);grid.position.set(floor.position.x,0,floorZ+1);
+  floor.scale.set(courseMode==='sky'?2.5:1,courseMode==='sky'?3:1,1);grid.scale.setScalar(courseMode==='sky'?2.5:1);
+  floor.material.color.setHex(courseMode==='sky'?0x357d9c:0x132b3a);grid.material.opacity=courseMode==='sky'?.2:.42;
+  const sky=courseMode==='sky'?0x83b1ce:courseMode==='abyss'?0x161f36:0x142635;renderer.setClearColor(sky);scene.fog.color.setHex(sky);
+  scene.fog.near=courseMode==='sky'?8000:2600;scene.fog.far=courseMode==='sky'?50000:16000;camera.far=courseMode==='sky'?65000:23000;camera.updateProjectionMatrix();
+  for(const r of course.surfaces||course){
+  const a=[r.x0,r.y0,rampHeight(r,r.y0,r.x0)],b=[r.x1,r.y0,rampHeight(r,r.y0,r.x1)],c=[r.x1,r.y1,rampHeight(r,r.y1,r.x1)],d=[r.x0,r.y1,rampHeight(r,r.y1,r.x0)];
+  const topMaterial=new THREE.MeshStandardMaterial({map:texture,color:courseMode==='sky'?(r.goal?0xacc0b7:0xcad4da):r.id%2?0x7895a7:0x8d99a0,roughness:.92,side:THREE.DoubleSide});
+  const top=quad([a,b,c,d],topMaterial,[[0,0],[(r.x1-r.x0)/100,0],[(r.x1-r.x0)/100,(r.y1-r.y0)/64],[0,(r.y1-r.y0)/64]]);
+  const base=courseMode==='sky'&&r.goal?floorZ+10:Math.min(a[2],b[2],c[2],d[2])-100,lowA=[r.x0,r.y0,base],lowB=[r.x1,r.y0,base],lowC=[r.x1,r.y1,base],lowD=[r.x0,r.y1,base];
   quad([a,b,lowB,lowA],sideMaterial);quad([b,c,lowC,lowB],sideMaterial);quad([c,d,lowD,lowC],sideMaterial);quad([d,a,lowA,lowD],sideMaterial);
   const edges=new THREE.LineSegments(new THREE.EdgesGeometry(top.geometry),new THREE.LineBasicMaterial({color:0xbcd4dc,transparent:true,opacity:.4}));levelGroup.add(edges);
-  const sprite=labelSprite(String(r.id).padStart(2,'0'));sprite.position.set(...toRenderPoint(r.x0+160,r.side*(r.width||450),r.c+800));levelGroup.add(sprite);
-  const target=new THREE.Mesh(new THREE.RingGeometry(32,37,48),new THREE.MeshBasicMaterial({color:0x72e4d9,transparent:true,opacity:.9,side:THREE.DoubleSide}));
-  const ty=r.side*220;target.position.set(...toRenderPoint(r.id===course.length?r.x1-100:r.x0+300,ty,rampHeight(r,ty)+5));target.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),new THREE.Vector3(...toRenderPoint(r.n.x,r.n.y,r.n.z)));levelGroup.add(target);targets.push(target);
+  if(courseMode==='sky'&&r.id===1&&r.x0>0)continue;
+  const sprite=labelSprite(r.name||String(r.id).padStart(2,'0'),courseMode==='sky'?'DESTINO DE VOO':'RAMPA');
+  sprite.position.set(...toRenderPoint(r.x0+160,courseMode==='sky'?(r.y0+r.y1)/2:r.side*(r.width||450),r.c+(courseMode==='sky'?500:800)));if(courseMode==='sky')sprite.scale.set(700,350,1);levelGroup.add(sprite);
+  const target=new THREE.Mesh(new THREE.RingGeometry(courseMode==='sky'?160:32,courseMode==='sky'?178:37,48),new THREE.MeshBasicMaterial({color:r.id===course.goalId?0xffc37c:0x72e4d9,transparent:true,opacity:.9,side:THREE.DoubleSide}));
+  const ty=courseMode==='sky'?(r.y0+r.y1)/2:r.side*220,tx=courseMode==='sky'?(r.x0+r.x1)/2:r.id===course.length?r.x1-100:r.x0+300;
+  target.position.set(...toRenderPoint(tx,ty,rampHeight(r,ty,tx)+5));target.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),new THREE.Vector3(...toRenderPoint(r.n.x,r.n.y,r.n.z)));target.userData.rampId=r.id;levelGroup.add(target);targets.push(target);
   if(courseMode==='abyss'&&r.id<course.length){
     const start=r.x1-600;
     quad([[start,r.y0,rampHeight(r,r.y0)+1],[r.x1,r.y0,rampHeight(r,r.y0)+1],[r.x1,r.y1,rampHeight(r,r.y1)+1],[start,r.y1,rampHeight(r,r.y1)+1]],new THREE.MeshBasicMaterial({color:0xf2bf7c,transparent:true,opacity:.12,depthWrite:false,side:THREE.DoubleSide}));
@@ -73,9 +82,11 @@ function buildCourse(){
   }
   $('ramp-dots').replaceChildren(...course.map(()=>document.createElement('i')));
   $('course-select').value=courseMode;
-  $('flight-brief').hidden=courseMode!=='abyss';
-  $('flight-brief').innerHTML=`<span>${course.length} RAMPAS</span><span>VÃOS DE ATÉ ${format(Math.max(...course.slice(1).map((r,i)=>r.x0-course[i].x1)))} u</span><span>PARTIDA A ${format(Math.hypot(state.vx,state.vy))} u/s</span>`;
-  document.body.classList.toggle('advanced',courseMode==='abyss');
+  $('flight-brief').hidden=courseMode==='basic';
+  $('flight-brief').innerHTML=courseMode==='sky'?'<span>DESCIDA DE ACELERAÇÃO</span><span>VOO DE CERCA DE 6 s</span><span>3 DESTINOS</span>':`<span>${course.length} RAMPAS</span><span>VÃOS DE ATÉ ${format(Math.max(...course.slice(1).map((r,i)=>r.x0-course[i].x1)))} u</span><span>PARTIDA A ${format(Math.hypot(state.vx,state.vy))} u/s</span>`;
+  $('destination-choice').hidden=courseMode!=='sky';$('destination').value=goal()?.key||'island';
+  $('long-flight-stats').hidden=courseMode!=='sky';
+  document.body.classList.toggle('advanced',courseMode!=='basic');document.body.classList.toggle('big-air',courseMode==='sky');
 }
 buildCourse();
 const predictionGeometry=new THREE.BufferGeometry();const predictionData=new Float32Array(400*3);predictionGeometry.setAttribute('position',new THREE.BufferAttribute(predictionData,3));predictionGeometry.setDrawRange(0,0);
@@ -98,15 +109,15 @@ function updatePrediction(){
 }
 function computeGuide(){
   guide=recommend(state,course);updatePrediction();
-  coast=courseMode==='abyss'&&!state.contact?coastPrediction(state,course):null;
+  coast=courseMode!=='basic'&&!state.contact?coastPrediction(state,course,courseMode==='sky'?10:4):null;
   let count=0;for(const p of coast?.path||[]){coastData.set(toRenderPoint(p.x,p.y,p.z+8),count*3);count++;}
   coastGeometry.attributes.position.needsUpdate=true;coastGeometry.setDrawRange(0,count);coastLine.computeLineDistances();
 }
 function resetRun(fromStart=false){
-  checkpoint=fromStart?0:checkpoint;state=spawn(course,checkpoint);accumulator=0;physicsCount=0;held.a=held.d=false;actualInput=0;flight=lastFlight=airFeedback=null;lastProgress=state.progress;computeGuide();updateHUD();
+  checkpoint=fromStart||courseMode==='sky'?0:checkpoint;state=spawn(course,checkpoint);accumulator=0;physicsCount=0;held.a=held.d=false;actualInput=0;flight=lastFlight=airFeedback=null;peakSpeed=Math.hypot(state.vx,state.vy,state.vz);lastProgress=state.progress;computeGuide();updateHUD();
 }
 function updateFlightCoach(){
-  $('flight-panel').hidden=courseMode!=='abyss'||!techniquesVisible;
+  $('flight-panel').hidden=courseMode==='basic'||!techniquesVisible;
   const r=course[state.progress-1],remaining=r.x1-state.x;
   let title,copy;
   if(state.contact){
@@ -120,6 +131,16 @@ function updateFlightCoach(){
     else if(actualInput){title=actualInput<0?'A + mouse suave à esquerda':'D + mouse suave à direita';copy=state.vz>0?`Ápice em ${format(state.vz/GRAVITY,2)} s pelo impulso da saída. Faça um arco suave, sem chicotear a mira.`:'Você já desce. O strafe pode dar alcance e corrigir a linha, mas não interrompe a queda.';}
     else{title='Escolha seu arco de strafe';copy='Acompanhe A/D e o ponto verde. Só alternar as teclas com a mira parada não cria aceleração contínua.';}
   }
+  if(courseMode==='sky'){
+    if(state.contact===1){
+      title=state.x<6000?'Deixe a descida gerar embalo':state.x<8000?'Converta embalo em subida':'Prepare o grande voo';
+      copy=state.x<6000?'A gravidade acelera você na descida. Segure a tecla indicada e evite atravessar a face com um giro brusco.':'A curva da rampa aponta a velocidade para cima. A subida vem da superfície; levantar a mira não cria impulso.';
+    }else if(!state.contact){
+      title=state.vz>0?'Subindo com o impulso da saída':'Você desce, mas ainda tem alcance';
+      copy=`Destino: ${goal().name}. Faça curvas largas com A/← ou D/→. Olhe o terreno passar: você continua caindo enquanto avança.`;
+      if(airFeedback?.braking){title='O giro está roubando velocidade';copy='Alivie a curva e acompanhe o guia. Com tanto embalo, pequenas correções já mudam bastante o destino.';}
+    }
+  }
   $('technique-title').textContent=title;$('technique-copy').textContent=copy;
   const f=flight||lastFlight,elapsed=flight?state.time-flight.start:Math.max(0,f?.duration||0),gain=flight?Math.hypot(state.vx,state.vy)-flight.speed:f?.gain||0;
   $('air-time').textContent=`${format(elapsed,2)} s`;$('air-gain').textContent=`${gain>=0?'+':''}${format(gain)} u/s`;
@@ -128,23 +149,26 @@ function updateFlightCoach(){
   $('sync-value').textContent=state.contact?'NA RAMPA':!actualInput?'SEM A/D':airFeedback?.braking?'FREANDO':`${efficiency}%`;
   $('sync-label').textContent='Eficiência de aceleração';
   $('sync-fill').style.width=`${efficiency}%`;$('sync-fill').style.background=airFeedback?.braking?'#f2bf7c':'';
+  const distance=flight?Math.hypot(state.x-flight.x,state.y-flight.y):lastFlight?.distance||0;
+  $('flight-distance').textContent=`${format(distance)} u`;$('peak-speed').textContent=`${format(peakSpeed)} u/s`;
+  $('landing-eta').textContent=flight&&guide?.landingTime!=null?`${format(guide.landingTime,1)} s`:'—';
 }
 function updateHUD(){
-  $('speed').textContent=format(Math.hypot(state.vx,state.vy));$('vertical').textContent=`${state.vz>=0?'↑':'↓'} ${format(Math.abs(state.vz))} u/s vertical`;
+  $('speed').textContent=format(Math.hypot(state.vx,state.vy));$('vertical').textContent=`${state.vz>=0?'↑':'↓'} ${format(Math.abs(state.vz))} u/s vertical${courseMode==='sky'?` · ${format(Math.hypot(state.vx,state.vy,state.vz))} total`:''}`;
   $('speed').style.color=state.airGain< -1?'#f2bf7c':'';
-  $('ramp-label').textContent=`${courseMode==='abyss'?'Abismo':'Fundamentos'} · ${state.progress} / ${course.length}`;
+  $('ramp-label').textContent=courseMode==='sky'?`Voo livre · ${goal().name}`:`${courseMode==='abyss'?'Abismo':'Fundamentos'} · ${state.progress} / ${course.length}`;
   [...$('ramp-dots').children].forEach((dot,i)=>{dot.className=i<state.progress-1?'done':i===state.progress-1?'current':'';});
   $('key-a').classList.toggle('held',actualInput<0);$('key-d').classList.toggle('held',actualInput>0);
   const action=guide?policy(state,course,guide.params):null;
   $('key-a').classList.toggle('recommended',guideVisible&&action?.input<0);$('key-d').classList.toggle('recommended',guideVisible&&action?.input>0);
   $('input-note').textContent=demo?'Demonstração automática':guideVisible?'Contorno verde: guia':'A / D para deslizar';
   $('motion-label').textContent=state.outcome==='won'?'Percurso concluído':state.outcome?'Você caiu':state.contact?state.vz>20?'Subindo na face':state.vz< -20?'Descendo na face':'Deslizando':'No ar';
-  $('checkpoint-label').textContent=`Checkpoint ${checkpoint+1} · R reinicia`;
+  $('checkpoint-label').textContent=courseMode==='sky'?'R · repetir o lançamento':`Checkpoint ${checkpoint+1} · R reinicia`;
   $('session-label').textContent=demo?'DEMONSTRAÇÃO':active?(rate<1?`TREINO ${rate}×`:'MOUSE CAPTURADO'):'PAUSADO';
   document.body.classList.toggle('guide-off',!guideVisible);
   prediction.visible=ghost.visible=guideVisible;
-  targets.forEach((target,i)=>{target.visible=i===Math.min(state.progress,course.length-1);});
-  coastLine.visible=guideVisible&&courseMode==='abyss'&&!state.contact;
+  targets.forEach((target,i)=>{target.visible=courseMode==='sky'?target.userData.rampId===course.goalId:i===Math.min(state.progress,course.length-1);});
+  coastLine.visible=guideVisible&&courseMode!=='basic'&&!state.contact;
   updateFlightCoach();
   if(action){
     $('coach-action').textContent=action.input<0?'Segure A':action.input>0?'Segure D':'Solte A / D';
@@ -160,10 +184,10 @@ function setMenu(kind='pause'){
   document.body.classList.remove('playing');document.body.classList.add('menu-open');menu.hidden=false;
   if(document.pointerLockElement)document.exitPointerLock();
   const title=menu.querySelector('h1');
-  $('menu-kicker').textContent=courseMode==='abyss'?'ABISMO · CINCO RAMPAS. QUATRO GRANDES SALTOS.':'FUNDAMENTOS · O PERCURSO ORIGINAL';
-  if(kind==='won'){title.innerHTML=courseMode==='abyss'?'Abismo<br><em>superado.</em>':'Seis rampas.<br><em>Você chegou.</em>';$('menu-copy').textContent=`Percurso completo em ${format(state.time,2)} segundos de simulação. Velocidade final: ${format(Math.hypot(state.vx,state.vy))} u/s.`;$('play').innerHTML='Jogar novamente <span>↗</span>';}
+  $('menu-kicker').textContent=courseMode==='sky'?'VOO LIVRE · INSPIRADO NOS GRANDES SALTOS DO SKI':courseMode==='abyss'?'ABISMO · CINCO RAMPAS. QUATRO GRANDES SALTOS.':'FUNDAMENTOS · O PERCURSO ORIGINAL';
+  if(kind==='won'){title.innerHTML=courseMode==='sky'?'Destino<br><em>alcançado.</em>':courseMode==='abyss'?'Abismo<br><em>superado.</em>':'Seis rampas.<br><em>Você chegou.</em>';$('menu-copy').textContent=courseMode==='sky'?`${course.find(r=>r.id===state.landedId)?.name}: ${format(lastFlight?.duration||0,2)} segundos sem tocar uma rampa e ${format(lastFlight?.distance||0)} unidades percorridas no ar. Pico de velocidade total: ${format(peakSpeed)} u/s.`:`Percurso completo em ${format(state.time,2)} segundos de simulação. Velocidade final: ${format(Math.hypot(state.vx,state.vy))} u/s.`;$('play').innerHTML='Jogar novamente <span>↗</span>';}
   else if(kind==='fell'){title.innerHTML='Mais uma<br><em>tentativa.</em>';$('menu-copy').textContent=`Você volta ao checkpoint ${checkpoint+1}. Use o contorno das teclas e o ponto verde para acompanhar a recomendação.`;$('play').innerHTML='Tentar o checkpoint <span>↗</span>';}
-  else{title.innerHTML=state.time?'Retome o<br><em>seu embalo.</em>':courseMode==='abyss'?'Domine<br><em>o vazio.</em>':'Encontre o<br><em>seu embalo.</em>';$('menu-copy').textContent=courseMode==='abyss'?'Vãos enormes e recepções estreitas. Saia subindo, faça um arco de strafe suave e preserve velocidade até a próxima face. Veja a demonstração para estudar o caminho.':'Olhe livremente com o mouse. Use A e D para conduzir a trajetória. O guia mostra uma previsão dos próximos movimentos.';$('play').innerHTML=state.time?'Continuar em tela cheia <span>↗</span>':'Jogar em tela cheia <span>↗</span>';}
+  else{title.innerHTML=state.time?'Retome o<br><em>seu embalo.</em>':courseMode==='sky'?'Ganhe embalo.<br><em>Atravesse o céu.</em>':courseMode==='abyss'?'Domine<br><em>o vazio.</em>':'Encontre o<br><em>seu embalo.</em>';$('menu-copy').textContent=courseMode==='sky'?'Uma longa descida, uma curva de lançamento e cerca de seis segundos inteiros no ar. Escolha onde pousar e veja como altura, velocidade e strafe se combinam para chegar longe.':courseMode==='abyss'?'Vãos enormes e recepções estreitas. Saia subindo, faça um arco de strafe suave e preserve velocidade até a próxima face. Veja a demonstração para estudar o caminho.':'Olhe livremente com o mouse. Use A e D para conduzir a trajetória. O guia mostra uma previsão dos próximos movimentos.';$('play').innerHTML=state.time?'Continuar em tela cheia <span>↗</span>':'Jogar em tela cheia <span>↗</span>';}
   updateHUD();
 }
 async function engage(watch=false){
@@ -206,11 +230,12 @@ $('restart').addEventListener('click',()=>{demo=false;resetRun(true);setMenu();s
 $('rate').addEventListener('change',event=>{rate=Number(event.target.value);savePreferences();});
 $('sensitivity').addEventListener('input',event=>{sensitivity=Number(event.target.value)*Math.PI/180;$('sensitivity-value').textContent=`${format(Number(event.target.value),2)}° / px`;savePreferences();});
 $('guide-toggle').addEventListener('change',event=>{guideVisible=event.target.checked;savePreferences();updateHUD();});
-$('course-select').addEventListener('change',event=>{
-  courseMode=event.target.value;course=createCourse(false,courseMode);state=spawn(course);checkpoint=0;demo=false;
+function changeCourse(){
+  courseMode=$('course-select').value;destination=$('destination').value;course=createCourse(false,courseMode,destination);state=spawn(course);checkpoint=0;demo=false;
   buildCourse();resetRun(true);setMenu();
-  const url=new URL(location.href);url.searchParams.set('fase',courseMode==='abyss'?'abismo':'fundamentos');history.replaceState(null,'',url);
-});
+  const url=new URL(location.href);url.searchParams.set('fase',courseMode==='sky'?'voo':courseMode==='abyss'?'abismo':'fundamentos');if(courseMode==='sky')url.searchParams.set('destino',destination);else url.searchParams.delete('destino');history.replaceState(null,'',url);
+}
+$('course-select').addEventListener('change',changeCourse);$('destination').addEventListener('change',changeCourse);
 function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.fov=2*Math.atan(1/camera.aspect)*180/Math.PI;camera.updateProjectionMatrix();}
 window.addEventListener('resize',resize);resize();
 const look=new THREE.Vector3();
@@ -222,12 +247,16 @@ function frame(wall){
     while(accumulator>=DT&&!state.outcome){
       if(physicsCount%20===0)computeGuide();
       actualInput=Number(held.d)-Number(held.a);
-      if(demo){const action=policy(state,course,guide.params);actualInput=applyControl(state,action);state.pitch=-12*Math.PI/180;}
+      if(demo){
+        const action=policy(state,course,guide.params);actualInput=applyControl(state,action);
+        state.pitch=courseMode==='sky'?(state.contact===1?clamp(Math.atan2(state.vz,Math.hypot(state.vx,state.vy))-.08,-.8,.7):clamp(Math.atan2(goal().c-state.z,Math.hypot((goal().x0+goal().x1)/2-state.x,(goal().y0+goal().y1)/2-state.y)),-.8,.3)):-12*Math.PI/180;
+      }
       const hadContact=state.contact;airFeedback=airMetrics(state,actualInput);
       step(state,actualInput,course);accumulator-=DT;physicsCount++;
-      if(hadContact&&!state.contact){flight={start:state.time,speed:Math.hypot(state.vx,state.vy),vz:state.vz,z:state.z};computeGuide();}
-      if(!hadContact&&state.contact&&flight){lastFlight={...flight,duration:state.time-flight.start,gain:Math.hypot(state.vx,state.vy)-flight.speed};flight=null;computeGuide();}
-      if(state.progress>lastProgress){checkpoint=state.progress-1;lastProgress=state.progress;setToast(`Checkpoint ${state.progress} / ${course.length}`);}
+      peakSpeed=Math.max(peakSpeed,Math.hypot(state.vx,state.vy,state.vz));
+      if(hadContact&&!state.contact){flight={start:state.time,speed:Math.hypot(state.vx,state.vy),vz:state.vz,z:state.z,x:state.x,y:state.y};computeGuide();}
+      if(!hadContact&&state.contact&&flight){lastFlight={...flight,duration:state.time-flight.start,gain:Math.hypot(state.vx,state.vy)-flight.speed,distance:Math.hypot(state.x-flight.x,state.y-flight.y)};flight=null;computeGuide();}
+      if(state.progress>lastProgress){checkpoint=courseMode==='sky'?0:state.progress-1;lastProgress=state.progress;if(courseMode!=='sky')setToast(`Checkpoint ${state.progress} / ${course.length}`);}
     }
     if(state.outcome)setMenu(state.outcome==='won'?'won':'fell');
   }
@@ -240,5 +269,5 @@ function frame(wall){
   look.set(camera.position.x+forward[0],camera.position.y+forward[1],camera.position.z+forward[2]);camera.lookAt(look);
   updateHUD();renderer.render(scene,camera);
 }
-window.surfLab=Object.freeze({snapshot:()=>({...state,active,demo,checkpoint,courseMode,flight:flight?{...flight,elapsed:state.time-flight.start}:null,lastFlight,coastVisible:coastLine.visible,coastLanding:coast?.landed,airFeedback,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,ramps:course.length,guideInput:guide?.input,guideSafe:guide?.safe,cameraForward:camera.getWorldDirection(new THREE.Vector3()).toArray()})});
+window.surfLab=Object.freeze({snapshot:()=>({...state,active,demo,checkpoint,courseMode,destination:goal()?.key,peakSpeed,flight:flight?{...flight,elapsed:state.time-flight.start}:null,lastFlight,coastVisible:coastLine.visible,coastLanding:coast?.landed,airFeedback,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,ramps:course.length,guideInput:guide?.input,guideSafe:guide?.safe,cameraForward:camera.getWorldDirection(new THREE.Vector3()).toArray()})});
 computeGuide();setMenu();$('loading').hidden=true;requestAnimationFrame(frame);
