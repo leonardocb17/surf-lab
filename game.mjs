@@ -157,7 +157,8 @@ function updateHUD(){
   $('speed').textContent=format(Math.hypot(state.vx,state.vy));$('vertical').textContent=`${state.vz>=0?'↑':'↓'} ${format(Math.abs(state.vz))} u/s vertical${courseMode==='sky'?` · ${format(Math.hypot(state.vx,state.vy,state.vz))} total`:''}`;
   $('speed').style.color=state.airGain< -1?'#f2bf7c':'';
   $('ramp-label').textContent=courseMode==='sky'?`Voo livre · ${goal().name}`:`${courseMode==='abyss'?'Abismo':'Fundamentos'} · ${state.progress} / ${course.length}`;
-  [...$('ramp-dots').children].forEach((dot,i)=>{dot.className=i<state.progress-1?'done':i===state.progress-1?'current':'';});
+  const stage=courseMode==='sky'?(state.outcome==='won'?3:!state.contact?2:state.x<6000?0:1):state.progress-1;
+  [...$('ramp-dots').children].forEach((dot,i)=>{dot.className=i<stage?'done':i===stage?'current':'';});
   $('key-a').classList.toggle('held',actualInput<0);$('key-d').classList.toggle('held',actualInput>0);
   const action=guide?policy(state,course,guide.params):null;
   $('key-a').classList.toggle('recommended',guideVisible&&action?.input<0);$('key-d').classList.toggle('recommended',guideVisible&&action?.input>0);
