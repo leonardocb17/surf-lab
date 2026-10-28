@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Treine surf em primeira pessoa em um percurso de seis rampas, com mouse capturado e um guia preditivo de movimento.">
+  <title>Surf Lab · treino de movimento</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main id="game">
+    <canvas id="view" aria-label="Percurso de surf em primeira pessoa com seis rampas. Use A/D e mova o mouse livremente depois de iniciar."></canvas>
+    <header class="top-hud" id="top-hud">
+      <div class="brand">SURF <span>LAB</span><small>treino de movimento</small></div>
+      <div class="course-progress"><span id="ramp-label">Rampa 1 / 6</span><div id="ramp-dots" aria-hidden="true"></div></div>
+      <div class="session-label" id="session-label">PRONTO</div>
+    </header>
+    <div id="crosshair" aria-hidden="true"><i></i><b></b></div>
+    <div id="aim-guide" aria-hidden="true"></div>
+    <div class="coach" id="coach"><span class="eyebrow">GUIA PREDITIVO</span><strong id="coach-action">Segure D</strong><span id="coach-mouse">Mira alinhada</span></div>
+    <div class="bottom-hud">
+      <div class="input-hud"><span class="eyebrow">VOCÊ</span><div class="key-row"><kbd id="key-a">A</kbd><kbd id="key-d">D</kbd></div><small id="input-note">A / D para deslizar</small></div>
+      <div class="speed-hud"><span id="speed">612</span><span class="speed-unit">u/s<small>horizontal</small></span><div id="vertical">↓ 150 u/s vertical</div></div>
+      <div class="run-hud"><span class="eyebrow">PERCURSO</span><strong id="motion-label">Na rampa</strong><small id="checkpoint-label">R reinicia o checkpoint</small></div>
+    </div>
+    <div class="keyboard-help">A / D · movimento <span>R · checkpoint</span><span>G · guia</span><span>Esc · pausa</span></div>
+    <section id="menu" class="menu" aria-label="Menu do treino">
+      <div class="menu-content">
+        <div class="menu-kicker">SEIS RAMPAS. UM MOVIMENTO DE CADA VEZ.</div>
+        <h1>Encontre o<br><em>seu embalo.</em></h1>
+        <p id="menu-copy">Olhe livremente com o mouse. Use A e D para conduzir a trajetória. O guia mostra uma previsão dos próximos movimentos.</p>
+        <div class="menu-actions"><button id="play" class="primary">Jogar em tela cheia <span>↗</span></button><button id="demo" class="secondary">Ver demonstração</button></div>
+        <p class="error" id="error" role="alert" hidden></p>
+        <div class="settings">
+          <label>Ritmo<select id="rate"><option value="1">Normal · 1×</option><option value="0.5">Treino · 0,5×</option><option value="0.25">Detalhe · 0,25×</option></select></label>
+          <label>Sensibilidade <output id="sensitivity-value">0,14° / px</output><input id="sensitivity" type="range" min="0.05" max="0.3" step="0.01" value="0.14"></label>
+          <label class="check"><input id="guide-toggle" type="checkbox" checked> Mostrar guia e previsão</label>
+        </div>
+        <div class="menu-controls"><span><kbd>A</kbd><kbd>D</kbd> movimento</span><span><kbd>R</kbd> checkpoint</span><span><kbd>Shift</kbd> + <kbd>R</kbd> início</span><span><kbd>Esc</kbd> soltar mouse</span></div>
+        <div class="menu-bottom"><button id="restart" class="text-button">Recomeçar o percurso</button><span>Física simplificada do GoldSrc</span></div>
+        <details><summary>Como funciona o guia?</summary><p>Compara movimentos futuros na física deste treino e indica a melhor opção simulada para avançar sem cair, preservando velocidade. A linha é uma previsão local, não uma rota perfeita garantida no CS 1.6. As colisões usam um ponto, não o corpo completo do jogador.</p></details>
+      </div>
+    </section>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <div id="loading" class="loading">Preparando o percurso…</div>
+  </main>
+  <script type="module" src="./game.mjs?v=20261027-lateral"></script>
+</body>
+</html>
