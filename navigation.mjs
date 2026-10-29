@@ -1,5 +1,5 @@
 export const MODES=Object.freeze([
-  {id:'ct',group:'Mapa original',title:'Guia CT e gabaritos',href:'./ct.html?v=20261029-atlas',tag:'Guia ao vivo',description:'Saia do CT, assista aos percursos e ajuste a cfg antes de jogar.',art:'map'},
+  {id:'ct',group:'Mapa original',title:'Guia CT e gabaritos',href:'./ct.html?v=20261029-final',tag:'Guia ao vivo',description:'Saia do CT, assista aos percursos e ajuste a cfg antes de jogar.',art:'map'},
   {id:'ski2',group:'Mapa original',title:'surf_ski_2 livre',href:'./ski2.html?v=20261029-hub',tag:'Exploração e prática',description:'Explore o mapa original, suas rampas, escadas e teleportes.',art:'map'},
   {id:'fundamentos',group:'Percursos de surf',title:'Fundamentos',href:'./index.html?fase=fundamentos',tag:'01 · Comece aqui',description:'Seis rampas para aprender A/D, mouse e transferências.',art:'ramps'},
   {id:'abismo',group:'Percursos de surf',title:'Abismo',href:'./index.html?fase=abismo',tag:'02 · Avançado',description:'Transferências maiores, saídas altas e controle do voo.',art:'gap'},

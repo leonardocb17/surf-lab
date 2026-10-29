@@ -1,7 +1,7 @@
 // Reproducible CT command policies. Every accepted route is replayed through stepPlayer.
 import {stepPlayer,TICK} from './goldsrc.mjs?v=20261029-ct';
-import {CT_CONFIG,TARGET,ctStart,isInitialRamp,sampleState,crossing,wrap} from './ct-physics.mjs?v=20261029-atlas';
-const labels={ramp:'Primeiro contato na rampa CT',connector:'Plataforma após a rampa CT',airtarget:'Alvo de estudo no ar',basin:'Piscina na base da torre',central:'Impulsionador central',jailed:'Prisão pelo teleporte do chão'};
+import {CT_CONFIG,TARGET,ctStart,isInitialRamp,sampleState,crossing,wrap} from './ct-physics.mjs?v=20261029-final';
+const labels={ramp:'Primeiro contato na rampa CT',connector:'Plataforma após a rampa CT',airtarget:'Alvo no ar · raio 80 u',basin:'Piscina na base da torre',central:'Impulsionador central',jailed:'Prisão pelo teleporte do chão'};
 const descriptions={ramp:'W, salto na borda, soltura de W e primeiro contato.',connector:'W, salto, D na face e um giro de0,25rad após Y=-1400.',airtarget:'W, salto, D na face e um giro de0,15rad após Y=-1500.',basin:'Saída pela crista, curva para contornar a plataforma e entrada na água.',central:'Saída para a plataforma, novo salto e curva até o impulsionador original.',jailed:'W até cair no teleporte original do chão. A prisão tem porta estática nesta adaptação.'};
 const point=s=>({x:s.x,y:s.y,z:s.z});
 function complexity(frames){let switches=0,yawRadians=0,last='';for(let i=0;i<frames.length;i++){const f=frames[i],signature=`${f.input.forward||0},${f.input.right||0},${f.input.jump?1:0},${f.input.duck?1:0}`;if(last&&signature!==last)switches++;last=signature;if(i)yawRadians+=Math.abs(wrap(f.yaw-frames[i-1].yaw));}return {switches,yawRadians};}
@@ -38,7 +38,7 @@ export function simulateRoute(map,mode,config=CT_CONFIG,policy={}){
   }
   let start=0;for(let i=1;i<frames.length;i++){if(frames[i].phase!==frames[start].phase){phases.push({start:frames[start].time,end:frames[i].time,label:frames[start].phase});start=i;}}
   phases.push({start:frames[start].time,end:s.time,label:frames[start].phase});
-  return {id:`ct-${mode}`,label:labels[mode],kind:'route',destination:{id:mode,label:labels[mode],position:point(s)},frames,duration:Number(s.time.toFixed(2)),steps:phases.filter(p=>p.end-p.start>.011),verified,reason,complexity:complexity(frames),teleports:s.teleports,pushes:s.pushes,description:mode==='connector'||mode==='airtarget'?`Corra, pule, solte W/S e pressione D na face. Giro final de ${Math.round(offset*180/Math.PI)}°.`:descriptions[mode],policy:{...policy},via:s.teleports?'Teleporte original do mapa':s.pushes?'Surf + impulsionador original':'Movimento e colisões do mapa',config:{...config}};
+  return {id:`ct-${mode}`,label:labels[mode],kind:'route',destination:{id:mode,label:labels[mode],position:mode==='airtarget'?point(TARGET):point(s),radius:mode==='airtarget'?TARGET.radius:45},frames,duration:Number(s.time.toFixed(2)),steps:phases.filter(p=>p.end-p.start>.011),verified,reason,complexity:complexity(frames),teleports:s.teleports,pushes:s.pushes,description:mode==='connector'||mode==='airtarget'?`Corra, pule, solte W/S e pressione D na face. Giro final de ${Math.round(offset*180/Math.PI)}°.`:descriptions[mode],policy:{...policy},via:s.teleports?'Teleporte original do mapa':s.pushes?'Surf + impulsionador original':'Movimento e colisões do mapa',config:{...config}};
 }
 const destinationLabels={top1:'Topo 1 · top1',top2:'Topo 2 · top2',jail:'Prisão superior · jail',tspawn:'Base T · tspawn',ctspawn:'Retorno CT · ctspawn',groom:'Sala G · groom',sroom:'Sala secreta · sroom',outs:'Área superior · outs',boost:'Área do boost · boost'};
 export function replayVerified(map,route){

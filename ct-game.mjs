@@ -3,10 +3,10 @@ import {BspMap} from './bsp.mjs?v=20261029-jumps';
 import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261029-ct';
 import {buildBspScene} from './bsp-render.mjs?v=20261028-remaster';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
-import {CT_CONFIG,TARGET,ctStart,prepareStudy,frameAt,sampleState,isInitialRamp,crossing,impactMetrics,wrap} from './ct-physics.mjs?v=20261029-atlas';
-import {widePath} from './wide-path.mjs?v=20261029-atlas';
-import {CFG_FIELDS,CFG_PRESETS,normalizeConfig,configKey} from './ct-settings.mjs?v=20261029-atlas';
-import {suggestedAction,surfaceAdvice} from './live-coach.mjs?v=20261029-atlas';
+import {CT_CONFIG,TARGET,ctStart,prepareStudy,frameAt,sampleState,isInitialRamp,crossing,impactMetrics,wrap} from './ct-physics.mjs?v=20261029-final';
+import {widePath} from './wide-path.mjs?v=20261029-final';
+import {CFG_FIELDS,CFG_PRESETS,normalizeConfig,configKey} from './ct-settings.mjs?v=20261029-final';
+import {suggestedAction,surfaceAdvice} from './live-coach.mjs?v=20261029-final';
 const $=id=>document.getElementById(id),fmt=(n,d=0)=>Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
 const edgeName=edge=>({front:'frente',ridge:'crista',corner:'quina frente/crista',side:'lateral'}[edge]??'sem saída');
 const canvas=$('view'),keys=new Set(),renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
@@ -28,7 +28,7 @@ function notice(text){$('live-notice').textContent=text;$('live-notice').hidden=
 function setForecast(line,points=[]){line.setPoints(points);}
 function clearForecast(){live.epoch++;live.result=null;live.source=null;lastForecast=-100;mouseTurn=0;turnRate=0;setForecast(forecast);setForecast(suggestion);}
 function setupWorker(){
-  worker=new Worker(new URL('./live-worker.mjs?v=20261029-atlas',import.meta.url),{type:'module'});
+  worker=new Worker(new URL('./live-worker.mjs?v=20261029-final',import.meta.url),{type:'module'});
   worker.onmessage=({data})=>{
     if(data.type==='ready'){live.ready=true;requestCatalog();return;}
     if(data.type==='catalog'){if(data.key===configKey(activeConfig)){atlas.catalog=data.catalog;atlas.key=data.key;atlas.status='ready';renderCatalog();}return;}
@@ -68,7 +68,7 @@ function buildPaths(){
   for(const other of selectedSet())if(other!==run)comparisonGroup.add(pathLine(other.frames,0x8fbcec,.35));
   const jump=run.frames.find(p=>p.input.jump);if(jump)marker(jump,'1 · SALTO DA BASE');
   if(run.entry)marker(run.entry,'2 · PRIMEIRO CONTATO','#8fbcec');if(run.exit)marker(run.exit,`3 · ${run.exit.edge==='corner'?'QUINA':edgeName(run.exit.edge).toUpperCase()}`,'#efc386');
-  const target=run.kind==='route'?{...run.destination.position,radius:45}:study.target;targetRing=new THREE.Mesh(new THREE.TorusGeometry(target.radius,3,8,64),new THREE.MeshBasicMaterial({color:0x91efd0,depthTest:true}));targetRing.rotation.x=Math.PI/2;targetRing.position.copy(point(target));markerGroup.add(targetRing);marker(target,run.kind==='route'?'◎ CHEGADA':'◎ ALVO FIXO','#91efd0',markerGroup);
+  const target=run.kind==='route'?{...run.destination.position,radius:run.destination.radius??45}:study.target;targetRing=new THREE.Mesh(new THREE.TorusGeometry(target.radius,3,8,64),new THREE.MeshBasicMaterial({color:0x91efd0,depthTest:true}));targetRing.rotation.x=Math.PI/2;targetRing.position.copy(point(target));markerGroup.add(targetRing);marker(target,run.kind==='route'?'◎ CHEGADA':'◎ ALVO FIXO','#91efd0',markerGroup);
   const center=new THREE.Mesh(new THREE.SphereGeometry(5,10,8),new THREE.MeshBasicMaterial({color:0xffffff}));center.position.copy(point(target));markerGroup.add(center);
   const jumpLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([point({x:-520,y:-3340,z:6}),point({x:-290,y:-3340,z:6})]),new THREE.LineBasicMaterial({color:0x91efd0,depthTest:false}));routeMarkers.add(jumpLine);
   guideGroup.visible=$('guides').checked;comparisonGroup.visible=$('other-paths').checked;activeTrail=[];updateTrail();
@@ -206,7 +206,7 @@ function requestCatalog(){
 }
 function catalogChoice(){
   const destination=atlas.catalog?.destinations.find(d=>d.id===$('route-destination').value),route=atlas.catalog?.routes.find(r=>r.id===destination?.routeId);
-  $('watch-route').disabled=cfgDirty||!route;$('route-note').textContent=route?`${route.via??'Percurso físico'} · ${fmt(route.duration,2)} s · ${route.complexity?.switches??0} trocas de comando · giro total ${fmt((route.complexity?.yawRadians??0)*180/Math.PI)}°. ${route.description??''}`:destination?.reason??'Sem rota verificada nesta cfg.';
+  $('watch-route').disabled=cfgDirty||!route;$('route-note').textContent=route?`${route.via??'Percurso físico'} · ${fmt(route.duration,2)} s · ${route.complexity?.switches??0} trocas de comando · giro horizontal ${fmt((route.complexity?.yawRadians??0)*180/Math.PI)}°. ${route.description??''}`:destination?.reason??'Sem rota verificada nesta cfg.';
 }
 function renderCatalog(){
   const catalog=atlas.catalog,prior=$('route-destination').value;
@@ -223,7 +223,7 @@ function watchRoute(){
 function updateRouteHud(){
   const step=run.steps?.find(p=>time>=p.start&&time<=p.end)??run.steps?.at(-1),input=state.input??{};
   $('phase').textContent=`GABARITO · ${run.label.toUpperCase()}`;$('entry-label').textContent='TEMPO DO PERCURSO';$('entry').textContent=`${fmt(time,2)} / ${fmt(run.duration,2)} s`;$('goal-label').textContent='DESTINO';$('goal').textContent=time>=run.duration?'CHEGOU':'em percurso';
-  $('advice-title').textContent=step?.label??'Observe os comandos deste percurso';$('advice').textContent=time>=run.duration?'Sequência verificada nesta cfg. Use a barra para rever o giro e cada troca de comando.':run.description??'A reprodução mostra comandos, colisões e teleportes realmente simulados, sem deslocamento artificial.';
+  $('advice-title').textContent=time>=run.duration?`Chegada · ${run.label}`:step?.label??'Observe os comandos deste percurso';$('advice').textContent=time>=run.duration?'Sequência verificada nesta cfg. Use a barra para rever o giro e cada troca de comando.':run.description??'A reprodução mostra comandos, colisões e teleportes realmente simulados, sem deslocamento artificial.';
   showKeys(input,input);const next=frameAt(run,Math.min(run.duration,time+.1)),delta=wrap(next.yaw-state.yaw)*180/Math.PI;
   $('mouse').textContent=Math.abs(delta)<.15?'mantenha o mouse':delta>0?'mouse → direita':'mouse ← esquerda';$('turn-arrow').textContent=Math.abs(delta)<.15?'↑':delta>0?'→':'←';$('turn-label').textContent=Math.abs(delta)<.15?'Direção constante':`Giro: ${fmt(Math.abs(delta),1)}° / 0,1 s`;$('turn-needle').style.left=`${50+Math.max(-45,Math.min(45,delta*3))}%`;
   $('clock').textContent=`${fmt(time,2)} s`;$('timeline').value=time;$('toggle').textContent=playing?'Ⅱ':'▶';
