@@ -19,3 +19,35 @@ Weapons, combat and multiplayer are not included.
 
 Three.js license: ../vendor/LICENSE.three.txt
 Format reference: https://github.com/ValveSoftware/halflife/blob/master/utils/common/bspfile.h
+
+
+surf_green
+Original attribution: Map by Gamer-X
+Source archive: https://www.surfmaparchive.com/maps/cs/surf_green.zip
+Original BSP SHA-256: ccf1166a69f1de556d33b5c4d76112dcef1441d39b23863f09579adf0f2589ca
+
+
+surf_ninja
+Original attribution: Designed By Drunken Ninja; Made By *Mario
+Source archive: https://www.surfmaparchive.com/maps/cs/surf_ninja.zip
+Original BSP SHA-256: fdccbf1ee501a168c6a4697d7128b98fc5c58381be747c63d84fd125f821165e
+
+
+surf_egypt
+Original attribution: Original author not authenticated from this archive
+Source archive: https://www.surfmaparchive.com/maps/cs/surf_egypt.zip
+Original BSP SHA-256: 33614035f8f058f1705ca13ea849004ca6713b1384221d493a9b0492890a3ccc
+
+Three-map browser visual adaptation: codex/interactive for Leonardo, 2026-10-29.
+Original BSP files, geometry, collision hulls and embedded credit panels are unchanged.
+surf_green credit and directional panels green1/green2/green3 remain untinted.
+surf_ninja surf_credits1..4 and surf_ninjaa/surf_ninjaaa remain original and untinted.
+Green attribution is Gamer-X. Ninja design is Drunken Ninja; construction is *Mario,
+as stated by the map itself. No identity equivalence with another mapper is inferred.
+Egypt mapper attribution was not authenticated; no author name is guessed.
+No permissive license or author endorsement is asserted. This is an unofficial,
+experimental single-player visual/movement adaptation, not a full CS runtime.
+External base-game WAD textures were not bundled; new procedural materials replace
+missing surfaces. The optional Ninja WAV was not imported. Doors/buttons/breakables
+remain static, dynamic changetarget/multisource logic is not reproduced, and enabled
+hurt brushes serve as practice reset zones. Original-map control/profile limits above apply.
