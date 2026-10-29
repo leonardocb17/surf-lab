@@ -6,7 +6,7 @@ import {buildBspScene} from './bsp-render.mjs?v=20261028-remaster';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
 const $=id=>document.getElementById(id),canvas=$('view'),keys=new Set();
 const fmt=(n,d=0)=>n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}),clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-let map,world,state,active=false,freeFly=false,accumulator=0,lastFrame=null,sensitivity=.14*Math.PI/180,noticeUntil=0,jumpQueued=false;
+let map,world,state,active=false,freeFly=false,accumulator=0,lastFrame=null,sensitivity=.14*Math.PI/180,noticeUntil=0,jumpQueued=false,timeScale=1;
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(65,1,1,22000);camera.up.set(0,0,1);const look=new THREE.Vector3();
 function notice(text){$('notice').textContent=text;$('notice').hidden=false;noticeUntil=performance.now()+2500;}
@@ -31,14 +31,17 @@ document.addEventListener('keydown',e=>{
   if(['INPUT','SELECT'].includes(e.target.tagName))return;
   if(e.code==='Escape'){menu();return;}
   if(e.code==='KeyR'&&!e.repeat){reset(freeFly);notice('Entrada reiniciada.');return;}
+  if(active&&['Digit1','Digit2','Digit3'].includes(e.code)&&!e.repeat){timeScale=({Digit1:1,Digit2:.5,Digit3:.25})[e.code];$('time-scale').value=String(timeScale);notice(`Tempo ${fmt(timeScale,2)}×`);return;}
   if(e.code==='KeyF'&&active&&!document.fullscreenElement){document.documentElement.requestFullscreen?.().catch(()=>{});return;}
   if(active){if(['KeyW','KeyA','KeyS','KeyD','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Space'&&!e.repeat)jumpQueued=true;keys.add(e.code);}
 });
 document.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{if(active)menu();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&active)menu();});
+$('time-scale').onchange=e=>{timeScale=Number(e.target.value);};
 $('play').onclick=()=>play(false);$('fly').onclick=()=>play(true);$('entry').onchange=()=>reset(false);$('sensitivity').oninput=e=>sensitivity=Number(e.target.value)*Math.PI/180;
 $('shadows').onchange=e=>{renderer.shadowMap.enabled=e.target.checked;world.materials.forEach(m=>m.needsUpdate=true);};
 function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}window.addEventListener('resize',resize);resize();
 function hud(){
+  $('time-scale-badge').textContent=`Tempo ${fmt(timeScale,timeScale===1?0:2)}× · 1 / 2 / 3`;
   const speed=Math.hypot(state.vx,state.vy);$('speed').textContent=fmt(speed);$('vertical').textContent=`horizontal · ${state.vz>=0?'↑':'↓'} ${fmt(Math.abs(state.vz))} u/s vertical`;
   $('status').textContent=active?freeFly?'EXPLORAÇÃO AÉREA':'MOUSE CAPTURADO':'PAUSADO';$('air').textContent=`No ar: ${fmt(state.airTime,2)} s`;$('counts').textContent=`Impulsos ${state.pushes} · Teleportes ${state.teleports}`;
   for(const key of ['w','a','s','d']){$('key-'+key).classList.toggle('on',keys.has('Key'+key.toUpperCase()));$('key-'+key).classList.remove('best');}
@@ -56,7 +59,7 @@ function hud(){
 function frame(wall){
   requestAnimationFrame(frame);if(!state)return;
   const elapsed=lastFrame==null?0:Math.min(.05,(wall-lastFrame)/1000);lastFrame=wall;
-  if(active){accumulator+=elapsed;while(accumulator>=TICK){
+  if(active){accumulator+=elapsed*timeScale;while(accumulator>=TICK){
     const forward=Number(keys.has('KeyW'))-Number(keys.has('KeyS')),right=Number(keys.has('KeyD'))-Number(keys.has('KeyA')),jump=jumpQueued||keys.has('Space'),duck=keys.has('ControlLeft')||keys.has('ControlRight');jumpQueued=false;
     if(freeFly){const c=Math.cos(state.yaw),s=Math.sin(state.yaw),speed=900;state.vx=(c*forward-s*right)*speed;state.vy=(s*forward+c*right)*speed;state.vz=(Number(jump)-Number(duck))*speed;state.x+=state.vx*TICK;state.y+=state.vy*TICK;state.z+=state.vz*TICK;state.time+=TICK;}
     else{stepPlayer(state,{forward,right,jump,duck},map,TICK,PROFILES[$('profile').value]);if(state.event)notice(state.event);if(state.z<map.models[0].mins.z-500||!Number.isFinite(state.x+state.y+state.z)){reset(false);notice('Você voltou à entrada escolhida.');}}
@@ -69,6 +72,6 @@ function frame(wall){
 try{
   const response=await fetch('./maps/surf_ski_2.bsp');if(!response.ok)throw new Error(`Mapa: HTTP ${response.status}`);
   map=new BspMap(await response.arrayBuffer());world=buildBspScene(map,renderer,scene);reset(false);
-  window.ski2=Object.freeze({snapshot:()=>({...state,triggerIds:undefined,active,freeFly,entry:$('entry').value,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,faces:map.faces.length,renderedFaces:world.renderedFaces,triangles:world.triangles,models:map.models.length,collisionSolids:map.solids.length,config:PROFILES[$('profile').value]})});
+  window.ski2=Object.freeze({snapshot:()=>({...state,triggerIds:undefined,active,freeFly,timeScale,entry:$('entry').value,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,faces:map.faces.length,renderedFaces:world.renderedFaces,triangles:world.triangles,models:map.models.length,collisionSolids:map.solids.length,config:PROFILES[$('profile').value]})});
   $('loading').hidden=true;requestAnimationFrame(frame);
 }catch(error){$('loading').hidden=true;$('error').hidden=false;$('error').textContent=`Falha ao preparar o mapa: ${error.message}`;console.error(error);}

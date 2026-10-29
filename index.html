@@ -1,19 +1,19 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8"><script>if(!new URLSearchParams(location.search).has("fase"))location.replace(new URL("./home.html",location.href));</script>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Treine grandes deslocamentos laterais no surf, com alvos dos dois lados, mapa da curva, demonstração e guia de A/D e mouse.">
   <title>Surf Lab · treino de movimento</title>
   <link rel="stylesheet" href="./style.css?v=20261028-arcos">
-</head>
+<link rel="stylesheet" href="./navigation.css?v=20261029-hub"></head>
 <body>
   <main id="game">
     <canvas id="view" aria-label="Percurso de surf em primeira pessoa. Use A/D e mova o mouse livremente depois de iniciar."></canvas>
     <header class="top-hud" id="top-hud">
       <div class="brand">SURF <span>LAB</span><small>treino de movimento</small></div>
       <div class="course-progress"><span id="ramp-label">Rampa 1 / 6</span><div id="ramp-dots" aria-hidden="true"></div></div>
-      <div class="session-label" id="session-label">PRONTO</div>
+      <div class="hud-actions"><div class="session-label" id="session-label">PRONTO</div><div class="mode-navigation" data-mode-nav=""></div></div>
     </header>
     <div id="crosshair" aria-hidden="true"><i></i><b></b></div>
     <div id="aim-guide" aria-hidden="true"></div>
@@ -45,7 +45,7 @@
         <div class="menu-actions"><button id="play" class="primary">Jogar em tela cheia <span>↗</span></button><button id="demo" class="secondary">Ver demonstração</button></div>
         <p class="error" id="error" role="alert" hidden></p>
         <div class="settings">
-          <label class="course-choice">Fase<select id="course-select"><option value="ct">Saída CT · alvo fixo, guias e eficiência</option><option value="jumps">Laboratório do pulo · agachar, velocidade e strafe</option><option value="ski2">surf_ski_2 · mapa original remasterizado</option><option value="lateral">Arcos laterais · alvos longe dos dois lados</option><option value="sky">Voo livre · descida e voo estilo ski</option><option value="abyss">Abismo · saltos longos · avançado</option><option value="basic">Fundamentos · percurso original · 6 rampas</option></select></label>
+          <label class="course-choice">Trocar de treino<select id="course-select"><optgroup label="Mapa original"><option value="ct">Guia CT e gabaritos</option><option value="ski2">surf_ski_2 livre</option></optgroup><optgroup label="Percursos de surf"><option value="basic">01 · Fundamentos</option><option value="abyss">02 · Abismo</option><option value="sky">03 · Voo livre</option><option value="lateral">04 · Arcos laterais</option></optgroup><optgroup label="Laboratórios"><option value="jumps">Laboratório do pulo</option></optgroup></select></label>
           <label class="course-choice" id="destination-choice" hidden>Onde você quer pousar?<select id="destination"><option value="island">Ilha distante · cruzar o vale</option><option value="tower">Mirante · destino elevado</option><option value="coast">Costa remota · curva longa à esquerda</option></select></label>
           <label>Ritmo<select id="rate"><option value="1">Normal · 1×</option><option value="0.5">Treino · 0,5×</option><option value="0.25">Detalhe · 0,25×</option></select></label>
           <label>Sensibilidade <output id="sensitivity-value">0,14° / px</output><input id="sensitivity" type="range" min="0.05" max="0.3" step="0.01" value="0.14"></label>
@@ -64,5 +64,5 @@
     <div id="loading" class="loading">Preparando o percurso…</div>
   </main>
   <script type="module" src="./game.mjs?v=20261029-ct"></script>
-</body>
+<script type="module" src="./navigation.mjs?v=20261029-hub"></script></body>
 </html>

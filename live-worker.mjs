@@ -1,11 +1,12 @@
 import {BspMap} from './bsp.mjs?v=20261029-jumps';
-import {liveGuide} from './live-coach.mjs?v=20261029-live';
+import {liveGuide} from './live-coach.mjs?v=20261029-atlas';
 let map;
-self.onmessage=({data})=>{
+self.onmessage=async({data})=>{
   try{
     if(data.type==='init'){map=new BspMap(data.buffer);self.postMessage({type:'ready'});return;}
+    if(data.type==='catalog'&&map){const {prepareRouteCatalog}=await import('./ct-routes.mjs?v=20261029-atlas');const catalog=await prepareRouteCatalog(map,data.config);self.postMessage({type:'catalog',key:data.key,catalog});return;}
     if(data.type!=='forecast'||!map)return;
     const result=liveGuide(data.state,map,data.options);
-    self.postMessage({type:'forecast',epoch:data.epoch,seq:data.seq,result,source:{time:data.state.time,x:data.state.x,y:data.state.y,z:data.state.z}});
-  }catch(error){self.postMessage({type:'error',epoch:data.epoch,message:error.message});}
+    self.postMessage({type:'forecast',epoch:data.epoch,seq:data.seq,result,source:{time:data.state.time,x:data.state.x,y:data.state.y,z:data.state.z,config:data.options.config}});
+  }catch(error){self.postMessage({type:data.type==='catalog'?'catalog-error':'error',key:data.key,epoch:data.epoch,message:error.message});}
 };
