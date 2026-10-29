@@ -290,6 +290,7 @@ $('rate').addEventListener('change',event=>{rate=Number(event.target.value);save
 $('sensitivity').addEventListener('input',event=>{sensitivity=Number(event.target.value)*Math.PI/180;$('sensitivity-value').textContent=`${format(Number(event.target.value),2)}° / px`;savePreferences();});
 $('guide-toggle').addEventListener('change',event=>{guideVisible=event.target.checked;savePreferences();updateHUD();});
 function changeCourse(){
+  if($('course-select').value==='ct'){location.href='./ct.html';return;}
   if($('course-select').value==='jumps'){location.href='./jumps.html';return;}
   if($('course-select').value==='ski2'){location.href='./ski2.html';return;}
   courseMode=$('course-select').value;destination=$('destination').value;course=createCourse(false,courseMode,destination);state=spawn(course);checkpoint=0;demo=false;

@@ -32,6 +32,7 @@ function slide(s,map,dt,hull){
     if(hit.fraction>0){Object.assign(s,hit.end);planes.length=0;}
     if(hit.fraction===1)break;
     s.contact=hit.normal;left*=1-hit.fraction;planes.push(hit.normal);
+    const before={x:s.vx,y:s.vy,z:s.vz};
     let velocity={x:s.vx,y:s.vy,z:s.vz},found=false;
     for(const plane of planes){
       const candidate=clip(velocity,plane);
@@ -41,7 +42,9 @@ function slide(s,map,dt,hull){
       if(planes.length===2){const [a,b]=planes,d={x:a.y*b.z-a.z*b.y,y:a.z*b.x-a.x*b.z,z:a.x*b.y-a.y*b.x},len=Math.hypot(d.x,d.y,d.z)||1;d.x/=len;d.y/=len;d.z/=len;const scale=dot(velocity,d);velocity={x:d.x*scale,y:d.y*scale,z:d.z*scale};}
       else velocity={x:0,y:0,z:0};
     }
-    if(dot(velocity,original)<=0){s.vx=s.vy=s.vz=0;break;}
+    if(dot(velocity,original)<=0)velocity={x:0,y:0,z:0};
+    if(s.captureImpacts)s.impacts.push({position:{...hit.end},normal:{...hit.normal},before,after:{...velocity},loss:Math.max(0,(dot(before,before)-dot(velocity,velocity))/2)});
+    if(!velocity.x&&!velocity.y&&!velocity.z){s.vx=s.vy=s.vz=0;break;}
     s.vx=velocity.x;s.vy=velocity.y;s.vz=velocity.z;
   }
 }
@@ -76,6 +79,7 @@ function triggers(s,map){
 }
 export function stepPlayer(s,input,map,dt=TICK,config=CONFIG){
   s.time+=dt;s.event=null;s.stuck=false;s.contact=null;
+  if(s.captureImpacts)s.impacts=[];
   s.stamina=Math.max(0,(s.stamina||0)-dt*1000);
   const hull=s.crouched?3:1,ground=map.trace(position(s),{x:s.x,y:s.y,z:s.z-2},hull);
   s.grounded=!ground.startSolid&&ground.fraction<1&&ground.normal.z>.7&&s.vz<=180;
@@ -92,7 +96,7 @@ export function stepPlayer(s,input,map,dt=TICK,config=CONFIG){
   triggers(s,map);const speedBefore=Math.hypot(s.vx,s.vy);
   const jumpPressed=input.jump&&!s.jumpHeld;
   if(!s.onLadder&&(s.inWater||(s.grounded&&!jumpPressed))){
-    const speed=Math.hypot(s.vx,s.vy),drop=(s.inWater?speed*3:Math.max(100,speed)*config.friction)*dt,scale=Math.max(0,speed-drop)/(speed||1);s.vx*=scale;s.vy*=scale;
+    const speed=Math.hypot(s.vx,s.vy),drop=(s.inWater?speed*3:Math.max(config.stopSpeed??100,speed)*config.friction)*dt,scale=Math.max(0,speed-drop)/(speed||1);s.vx*=scale;s.vy*=scale;
   }
   if(jumpPressed&&s.grounded&&!s.onLadder){if(config.bunnyCap)bunnyLimit(s,config.maxSpeed);s.vz=config.stamina?jumpSpeed(s.stamina):config.jump;s.stamina=STAMINA_RESET;s.grounded=false;}
   const f=input.forward||0,right=input.right||0,wx=Math.cos(s.yaw)*f-Math.sin(s.yaw)*right,wy=Math.sin(s.yaw)*f+Math.cos(s.yaw)*right,len=Math.hypot(wx,wy),wishSpeed=config.maxSpeed*((input.duck||s.crouched)?BODY.duckMultiplier:1);
@@ -111,11 +115,11 @@ export function stepPlayer(s,input,map,dt=TICK,config=CONFIG){
   if(!s.onLadder)s.vz-=config.gravity*(s.inWater?.25:1)*dt/2;
   const start={...s};slide(s,map,dt,s.crouched?3:1);
   if(start.grounded&&!s.stuck&&s.contact&&s.contact.z<.7){
-    const elevated={...start,z:start.z+18};
+    const elevated={...start,z:start.z+18,impacts:[]};
     const clearance=map.trace(position(start),position(elevated),s.crouched?3:1);
     if(!clearance.startSolid&&clearance.fraction===1){
       slide(elevated,map,dt,s.crouched?3:1);const down=map.trace(position(elevated),{x:elevated.x,y:elevated.y,z:elevated.z-18},s.crouched?3:1);
-      if(!down.startSolid&&down.normal.z>.7&&Math.hypot(elevated.x-start.x,elevated.y-start.y)>Math.hypot(s.x-start.x,s.y-start.y)){Object.assign(s,down.end);s.vx=elevated.vx;s.vy=elevated.vy;s.vz=0;s.contact=down.normal;}
+      if(!down.startSolid&&down.normal.z>.7&&Math.hypot(elevated.x-start.x,elevated.y-start.y)>Math.hypot(s.x-start.x,s.y-start.y)){Object.assign(s,down.end);s.vx=elevated.vx;s.vy=elevated.vy;s.vz=0;s.contact=down.normal;if(s.captureImpacts)s.impacts=elevated.impacts;}
     }
   }
   if(!s.onLadder)s.vz-=config.gravity*(s.inWater?.25:1)*dt/2;
