@@ -1,0 +1,17 @@
+surf_ski_2 map
+Original map by Super Mario, as credited in the map's embedded madeby and supermariorq8 panels.
+Original geometry and embedded credit panels remain in surf_ski_2.bsp.
+Source archive: https://cs16forge.com/dl/maps/surf/surf_ski_2.zip
+Map listing: https://cs16forge.com/maps/surf/surf_ski_2/
+Original BSP SHA-256: e45838152f7efb91d82f12bcd88793c0cb150dbc20523f0db4ec7fa3965f3524
+
+Browser adaptation and new rendering: codex/interactive for Leonardo, 2026-10-28.
+This is an unofficial, experimental single-player exploration and surf adaptation.
+The original map geometry and collision hulls are loaded directly. Missing external
+WAD materials use newly generated procedural materials; this is not a complete
+replacement for a Counter-Strike installation or a specific server's movement settings.
+Water, ladders and push integration are adapted; doors and breakable geometry remain static.
+Weapons, combat and multiplayer are not included.
+
+Three.js license: ../vendor/LICENSE.three.txt
+Format reference: https://github.com/ValveSoftware/halflife/blob/master/utils/common/bspfile.h
