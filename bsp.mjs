@@ -54,6 +54,19 @@ export class BspMap{
     return hull?node:(this.leaves[-node-1]?.contents??SOLID);
   }
   contains(model,p,hull=0){const contents=this.contents(model,nativePoint(p),hull);return contents===SOLID||(model.entity?.classname==='func_water'&&contents===-3);}
+  ladderNormal(model,p){
+    const center=physicsPoint(add(scaleCenter(model.mins,model.maxs),model.offset)),hit=this.traceModel(model,p,center,0);
+    if(!hit.startSolid&&hit.fraction<1&&Math.hypot(hit.normal.x,hit.normal.y)>.01)return hit.normal;
+    // A player center inside a thin brush needs the nearest actual side plane.
+    const local=sub(nativePoint(p),model.offset);let nearest=null,best=Infinity;
+    for(let i=model.first;i<model.first+model.count;i++){
+      const face=this.faces[i],plane=this.planes[face.plane],sign=face.side?-1:1,n=plane.normal;
+      if(Math.hypot(n.x,n.y)<.01)continue;
+      const distance=Math.abs(dot(local,n)-plane.dist);
+      if(distance<best){best=distance;nearest=physicsPoint(vec(n.x*sign,n.y*sign,n.z*sign));}
+    }
+    return nearest;
+  }
   traceModel(model,start,end,hull=1){
     const a=sub(nativePoint(start),model.offset),b=sub(nativePoint(end),model.offset),delta=sub(b,a),nodes=hull?this.clipnodes:this.nodes;
     const beganSolid=this.contents(model,nativePoint(start),hull)===SOLID,result={fraction:1,end:{...end},normal:vec(),startSolid:false,model};let visits=0;
@@ -92,3 +105,4 @@ export class BspMap{
     return {...p,yaw:-(this.parseVector(e.angles).y||Number(e.angle)||0)*Math.PI/180};
   }
 }
+function scaleCenter(a,b){return vec((a.x+b.x)/2,(a.y+b.y)/2,(a.z+b.z)/2);}

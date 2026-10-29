@@ -1,6 +1,7 @@
 import * as THREE from './vendor/three.module.min.js';
-import {BspMap,physicsPoint} from './bsp.mjs?v=20261028-remaster';
-import {spawnPlayer,stepPlayer,TICK,CONFIG} from './goldsrc.mjs?v=20261028-remaster';
+import {BspMap,physicsPoint} from './bsp.mjs?v=20261029-jumps';
+import {spawnPlayer,stepPlayer,ladderPracticeEntry,TICK} from './goldsrc.mjs?v=20261029-jumps';
+import {PROFILES} from './movement-rules.mjs?v=20261029-jumps';
 import {buildBspScene} from './bsp-render.mjs?v=20261028-remaster';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
 const $=id=>document.getElementById(id),canvas=$('view'),keys=new Set();
@@ -12,6 +13,7 @@ function notice(text){$('notice').textContent=text;$('notice').hidden=false;noti
 function reset(visit=false){
   freeFly=visit;state=spawnPlayer(map,$('entry').value==='t'?'t':'ct');keys.clear();jumpQueued=false;accumulator=0;
   if(visit)Object.assign(state,{x:-4400,y:-5000,z:4100,yaw:.89,pitch:-.63});
+  else if($('entry').value==='ladder'){const p=ladderPracticeEntry(map);if(p)Object.assign(state,p);}
   else if($('entry').value==='ramp'){
     const face=map.faces[925],vertices=map.faceVertices(face),center=vertices.reduce((a,p)=>({x:a.x+p.x/vertices.length,y:a.y+p.y/vertices.length,z:a.z+p.z/vertices.length}),{x:0,y:0,z:0}),p=physicsPoint(center);
     const hit=map.trace({...p,z:p.z+180},{...p,z:p.z-180});Object.assign(state,hit.end,{z:hit.end.z+.2,vx:550,vy:0,vz:-10,yaw:0,pitch:-.12});
@@ -24,7 +26,7 @@ async function play(visit){
   catch(e){$('error').textContent='Não foi possível capturar o mouse. Abra o endereço em uma aba normal do Chrome/Edge e clique novamente em Jogar.';$('error').hidden=false;menu();}
 }
 document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement===canvas){active=true;lastFrame=null;$('menu').hidden=true;document.body.classList.remove('menu-open');}else menu();});
-document.addEventListener('mousemove',e=>{if(active){state.yaw+=e.movementX*sensitivity;state.pitch=clamp(state.pitch-e.movementY*sensitivity,-1.45,1.45);}});
+document.addEventListener('mousemove',e=>{if(active){state.yaw+=e.movementX*sensitivity;state.pitch=clamp(state.pitch-e.movementY*sensitivity,-89*Math.PI/180,89*Math.PI/180);}});
 document.addEventListener('keydown',e=>{
   if(['INPUT','SELECT'].includes(e.target.tagName))return;
   if(e.code==='Escape'){menu();return;}
@@ -42,7 +44,7 @@ function hud(){
   for(const key of ['w','a','s','d']){$('key-'+key).classList.toggle('on',keys.has('Key'+key.toUpperCase()));$('key-'+key).classList.remove('best');}
   let title,tip;
   if(freeFly){title='Exploração aérea';tip='WASD conduz o voo. Espaço sobe, Ctrl desce. Este modo permite observar o mapa sem colisões.';}
-  else if(state.onLadder){title='Na escada';tip='W sobe e S desce. Espaço ajuda a sair da escada.';}
+  else if(state.onLadder){const n=state.ladderNormal,intoRight=Math.sin(state.yaw)*n.x-Math.cos(state.yaw)*n.y,key=intoRight>=0?'d':'a';$('key-'+key).classList.add('best');title='Escada · movimento por projeção';tip=`O movimento contra a face vira subida. De lado, pressione ${key.toUpperCase()} contra a escada, olhe para baixo e combine S. O ângulo determina o ganho; Espaço salta para fora.`;}
   else if(state.inWater){title='Na água';tip='Use WASD para nadar e Espaço para subir. Procure a borda ou uma saída do mapa.';}
   else if(state.contact&&state.contact.z>.05&&state.contact.z<.7){
     const right={x:-Math.sin(state.yaw),y:Math.cos(state.yaw)},n=state.contact,uphill=-n.x*right.x-n.y*right.y,key=uphill>0?'d':'a';
@@ -57,16 +59,16 @@ function frame(wall){
   if(active){accumulator+=elapsed;while(accumulator>=TICK){
     const forward=Number(keys.has('KeyW'))-Number(keys.has('KeyS')),right=Number(keys.has('KeyD'))-Number(keys.has('KeyA')),jump=jumpQueued||keys.has('Space'),duck=keys.has('ControlLeft')||keys.has('ControlRight');jumpQueued=false;
     if(freeFly){const c=Math.cos(state.yaw),s=Math.sin(state.yaw),speed=900;state.vx=(c*forward-s*right)*speed;state.vy=(s*forward+c*right)*speed;state.vz=(Number(jump)-Number(duck))*speed;state.x+=state.vx*TICK;state.y+=state.vy*TICK;state.z+=state.vz*TICK;state.time+=TICK;}
-    else{stepPlayer(state,{forward,right,jump,duck},map);if(state.event)notice(state.event);if(state.z<map.models[0].mins.z-500||!Number.isFinite(state.x+state.y+state.z)){reset(false);notice('Você voltou à entrada escolhida.');}}
+    else{stepPlayer(state,{forward,right,jump,duck},map,TICK,PROFILES[$('profile').value]);if(state.event)notice(state.event);if(state.z<map.models[0].mins.z-500||!Number.isFinite(state.x+state.y+state.z)){reset(false);notice('Você voltou à entrada escolhida.');}}
     accumulator-=TICK;
   }}
   if(!active&&state.time===0){camera.position.set(-4400,5000,4100);camera.lookAt(-100,300,-500);}
-  else{camera.position.set(...toRenderPoint(state.x,state.y,state.z+(freeFly?0:state.crouched?12:28)));const dir=toRenderForward(state.yaw,state.pitch);look.set(camera.position.x+dir[0],camera.position.y+dir[1],camera.position.z+dir[2]);camera.lookAt(look);}
+  else{camera.position.set(...toRenderPoint(state.x,state.y,state.z+(freeFly?0:state.eye)));const dir=toRenderForward(state.yaw,state.pitch);look.set(camera.position.x+dir[0],camera.position.y+dir[1],camera.position.z+dir[2]);camera.lookAt(look);}
   hud();world.update(wall/1000);renderer.render(scene,camera);
 }
 try{
   const response=await fetch('./maps/surf_ski_2.bsp');if(!response.ok)throw new Error(`Mapa: HTTP ${response.status}`);
   map=new BspMap(await response.arrayBuffer());world=buildBspScene(map,renderer,scene);reset(false);
-  window.ski2=Object.freeze({snapshot:()=>({...state,triggerIds:undefined,active,freeFly,entry:$('entry').value,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,faces:map.faces.length,renderedFaces:world.renderedFaces,triangles:world.triangles,models:map.models.length,collisionSolids:map.solids.length,config:CONFIG})});
+  window.ski2=Object.freeze({snapshot:()=>({...state,triggerIds:undefined,active,freeFly,entry:$('entry').value,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,faces:map.faces.length,renderedFaces:world.renderedFaces,triangles:world.triangles,models:map.models.length,collisionSolids:map.solids.length,config:PROFILES[$('profile').value]})});
   $('loading').hidden=true;requestAnimationFrame(frame);
 }catch(error){$('loading').hidden=true;$('error').hidden=false;$('error').textContent=`Falha ao preparar o mapa: ${error.message}`;console.error(error);}

@@ -10,7 +10,11 @@ This is an unofficial, experimental single-player exploration and surf adaptatio
 The original map geometry and collision hulls are loaded directly. Missing external
 WAD materials use newly generated procedural materials; this is not a complete
 replacement for a Counter-Strike installation or a specific server's movement settings.
-Water, ladders and push integration are adapted; doors and breakable geometry remain static.
+Ladders use view-vector/face-normal projection researched from the Valve SDK and CS-specific ReGameDLL.
+Two movement profiles expose air acceleration and per-axis limits; neither claims to recover a historical server CFG.
+Water and push integration are adapted; doors and breakable geometry remain static.
+Jump/crouch research update: codex/interactive, 2026-10-29.
+Reference: https://github.com/rehlds/ReGameDLL_CS/tree/master/regamedll/pm_shared
 Weapons, combat and multiplayer are not included.
 
 Three.js license: ../vendor/LICENSE.three.txt
