@@ -3,7 +3,8 @@ import {BspMap} from './bsp.mjs?v=20261029-jumps';
 import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261029-ct';
 import {buildBspScene} from './bsp-render.mjs?v=20261028-remaster';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
-import {CT_CONFIG,TARGET,ctStart,prepareStudy,frameAt,sampleState,isInitialRamp,crossing,impactMetrics,coach} from './ct-physics.mjs?v=20261029-ct';
+import {CT_CONFIG,TARGET,ctStart,prepareStudy,frameAt,sampleState,isInitialRamp,crossing,impactMetrics,wrap} from './ct-physics.mjs?v=20261029-ct';
+import {suggestedAction,surfaceAdvice} from './live-coach.mjs?v=20261029-live';
 const $=id=>document.getElementById(id),fmt=(n,d=0)=>Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
 const edgeName=edge=>({front:'frente',ridge:'crista',corner:'quina frente/crista',side:'lateral'}[edge]??'sem saída');
 const canvas=$('view'),keys=new Set(),renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
@@ -15,7 +16,31 @@ const routeMarkers=new THREE.Group();guideGroup.add(routeMarkers);
 const ghost=new THREE.Mesh(new THREE.BoxGeometry(28,28,72),new THREE.MeshBasicMaterial({color:0x91efd0,wireframe:true,depthTest:false}));guideGroup.add(ghost);
 const trail=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffffff,depthTest:false,transparent:true,opacity:.9}));scene.add(trail);
 const forecast=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineDashedMaterial({color:0xefc386,dashSize:15,gapSize:12,depthTest:false,transparent:true,opacity:.85}));guideGroup.add(forecast);
-let selectedLine=null,targetRing=null;
+const suggestion=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineDashedMaterial({color:0x91efd0,dashSize:20,gapSize:10,depthTest:false,transparent:true,opacity:.95}));guideGroup.add(suggestion);
+const live={ready:false,busy:false,seq:0,epoch:0,updates:0,result:null,source:null,error:null};
+let worker=null,selectedLine=null,targetRing=null,mouseTurn=0,turnRate=0,lastTrail=-100,noticeUntil=0;
+function heldInput(){return {forward:Number(keys.has('KeyW'))-Number(keys.has('KeyS')),right:Number(keys.has('KeyD'))-Number(keys.has('KeyA')),jump:keys.has('Space'),duck:keys.has('ControlLeft')||keys.has('ControlRight')};}
+function notice(text){$('live-notice').textContent=text;$('live-notice').hidden=false;noticeUntil=performance.now()+3200;}
+function setForecast(line,points=[]){line.geometry.dispose();line.geometry=new THREE.BufferGeometry().setFromPoints(points.map(point));line.computeLineDistances();}
+function clearForecast(){live.epoch++;live.result=null;live.source=null;lastForecast=-100;mouseTurn=0;turnRate=0;setForecast(forecast);setForecast(suggestion);}
+function setupWorker(){
+  worker=new Worker(new URL('./live-worker.mjs?v=20261029-live',import.meta.url),{type:'module'});
+  worker.onmessage=({data})=>{
+    if(data.type==='ready'){live.ready=true;return;}
+    live.busy=false;
+    if(data.type==='error'){live.error=data.message;console.warn('Live forecast:',data.message);return;}
+    if(data.epoch!==live.epoch||!practicing)return;
+    live.result=data.result;live.source=data.source;live.updates++;
+    setForecast(forecast,data.result.current.points);setForecast(suggestion,data.result.suggested?.points);
+  };
+  worker.onerror=()=>{live.ready=false;live.busy=false;live.error='Previsão indisponível';};
+  const buffer=map.buffer.slice(0);worker.postMessage({type:'init',buffer},[buffer]);
+}
+function liveAction(){
+  const packet=live.result,plan=packet?.suggested?.plan??{kind:'target',offset:-.05};
+  if(!$('goal-enabled').checked||packet?.targetBehind)return suggestedAction(state,study.target,{kind:'velocity',offset:0,free:true,side:heldInput().right||Math.sign(turnRate)||1});
+  return suggestedAction(state,study.target,plan);
+}
 const point=p=>new THREE.Vector3(...toRenderPoint(p.x,p.y,p.z));
 function disposeGroup(group){for(const child of [...group.children]){group.remove(child);child.geometry?.dispose();if(Array.isArray(child.material))child.material.forEach(m=>{m.map?.dispose();m.dispose();});else{child.material?.map?.dispose();child.material?.dispose();}}}
 function pathLine(frames,color,opacity=1){const points=frames.filter((_,i)=>i%3===0).map(point);if(opacity>.9){return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),Math.min(300,points.length),5,5,false),new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthTest:false}));}const geometry=new THREE.BufferGeometry().setFromPoints(points);return new THREE.Line(geometry,new THREE.LineBasicMaterial({color,transparent:true,opacity,depthTest:false}));}
@@ -60,72 +85,110 @@ function drawScan(){
 async function calculate(){
   $('loading').hidden=false;$('progress').textContent='Calculando comparações sobre as colisões reais…';await new Promise(r=>requestAnimationFrame(r));
   study=await prepareStudy(map,n=>{$('progress').textContent=`Comparando entradas e saídas · ensaio ${n}`;},{...TARGET,radius:Number($('precision').value)});
-  $('target-badge').textContent=`◎ ALVO FIXO · RAIO ${study.target.radius} u`;$('loading').hidden=true;familyChanged();
+  $('target-badge').textContent=`◎ ALVO OPCIONAL · RAIO ${study.target.radius} u`;$('loading').hidden=true;familyChanged();
 }
 function stopPractice(){practicing=false;keys.clear();queuedJump=false;document.body.classList.remove('practicing');if(document.pointerLockElement===canvas)document.exitPointerLock();if(document.fullscreenElement)document.exitFullscreen?.().catch(()=>{});resize();state=frameAt(run,time);}
 function resetPractice(){
   state=ctStart(map);let seed=null;
-  if(run.kind==='controlled')seed=run.frames[0];else if($('checkpoint').value==='contact')seed=run.entry;else if($('checkpoint').value==='jump')seed=run.frames.find(p=>p.input.jump);
+  if($('checkpoint').value==='contact')seed=run.entry;else if($('checkpoint').value==='jump')seed=run.frames.find(p=>p.input.jump);
   if(seed)Object.assign(state,seed,{time:0,captureImpacts:true,impacts:[],contact:null,teleports:0,pushes:0,airTime:0});
-  context={entry:run.kind==='controlled'||$('checkpoint').value==='contact'?sampleState(state):null,lastContact:null,gap:0,exit:null,landed:false,contacted:false,gate:null,entryImpact:null};
-  finished=false;accumulator=0;keys.clear();queuedJump=false;activeTrail=[];updateTrail();lastForecast=-100;
+  context={entry:$('checkpoint').value==='contact'?sampleState(state):null,lastContact:null,gap:0,exit:null,landed:false,contacted:false,gate:null,entryImpact:null,hits:0};
+  finished=false;accumulator=0;keys.clear();queuedJump=false;activeTrail=[];updateTrail();clearForecast();$('live-notice').hidden=true;
 }
 async function practice(){
   $('error').hidden=true;playing=false;resetPractice();$('results').hidden=true;document.body.classList.add('practicing');resize();
   try{await Promise.resolve(canvas.requestPointerLock());document.documentElement.requestFullscreen?.().catch(()=>{});}catch(e){stopPractice();$('error').hidden=false;$('error').textContent='Não foi possível capturar o mouse. Abra o link em uma aba normal do Chrome/Edge e clique novamente em Praticar.';}
 }
 document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement===canvas){practicing=true;last=null;}else if(practicing)stopPractice();});
-document.addEventListener('mousemove',e=>{if(practicing){state.yaw+=e.movementX*.14*Math.PI/180;state.pitch=Math.max(-1.55,Math.min(1.55,state.pitch-e.movementY*.14*Math.PI/180));}});
+document.addEventListener('mousemove',e=>{if(practicing){const delta=e.movementX*.14*Math.PI/180;state.yaw+=delta;mouseTurn+=delta;state.pitch=Math.max(-1.55,Math.min(1.55,state.pitch-e.movementY*.14*Math.PI/180));}});
 document.addEventListener('keydown',e=>{
   if(!practicing)return;if(e.code==='Escape'){stopPractice();return;}if(e.code==='KeyR'&&!e.repeat){resetPractice();return;}
+  if(['KeyH','KeyG'].includes(e.code)&&!e.repeat){const toggle=$(e.code==='KeyH'?'guides':'goal-enabled');toggle.checked=!toggle.checked;toggle.dispatchEvent(new Event('change'));return;}
   if(['KeyW','KeyA','KeyS','KeyD','Space','ControlLeft','ControlRight'].includes(e.code)){e.preventDefault();keys.add(e.code);if(e.code==='Space'&&!e.repeat)queuedJump=true;}
 });document.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{if(practicing)stopPractice();});
 function practiceTick(){
-  const input={forward:Number(keys.has('KeyW'))-Number(keys.has('KeyS')),right:Number(keys.has('KeyD'))-Number(keys.has('KeyA')),jump:queuedJump||keys.has('Space'),duck:keys.has('ControlLeft')||keys.has('ControlRight')};queuedJump=false;
+  const input=heldInput();input.jump ||= queuedJump;queuedJump=false;
   const previous={...state};stepPlayer(state,input,map,TICK,CT_CONFIG);
+  if(!Number.isFinite(state.x+state.y+state.z+state.vx+state.vy+state.vz)){resetPractice();notice('Estado inválido: voltamos ao início.');return;}
   if(isInitialRamp(state)){context.gap=0;context.lastContact=sampleState(state,input,'rampa');if(!context.entry){context.entry=context.lastContact;context.entryImpact=impactMetrics(state.impacts.find(p=>p.normal.z>.3&&p.normal.z<.7));}}
   else if(context.entry&&!context.exit){context.gap++;if(context.gap>=6&&context.lastContact)context.exit=context.lastContact;}
   if(context.exit&&(state.grounded||state.inWater))context.landed=true;
   if(context.exit&&(state.contact||state.grounded||state.inWater||state.onLadder))context.contacted=true;
-  if(context.exit){context.gate=crossing(previous,state,study.target);if(context.gate){context.gate.hit=context.gate.error<=study.target.radius&&context.gate.airborne&&!context.landed&&!context.contacted;finished=true;}}
-  if(state.teleports||state.pushes||state.stuck||state.z<-1800||state.time>18)finished=true;
-  if(activeTrail.length===0||state.time-activeTrail.at(-1).time>=.03){activeTrail.push({x:state.x,y:state.y,z:state.z,time:state.time});updateTrail();}
+  const gate=$('goal-enabled').checked?crossing(previous,state,study.target):null;
+  if(gate){
+    gate.hit=gate.error<=study.target.radius&&gate.airborne&&!state.onLadder;context.gate=gate;if(gate.hit)context.hits++;
+    notice(gate.hit?'Alvo atingido no ar! Continue surfando.':`Passou a ${fmt(gate.error)} u do centro. Continue ou use R para tentar outra saída.`);
+  }
+  if(state.teleports!==previous.teleports||state.pushes!==previous.pushes){clearForecast();notice(state.teleports!==previous.teleports?'Teleporte do mapa. O guia acompanha seu novo embalo.':'Impulso do mapa. Continue escolhendo sua linha.');}
+  if(activeTrail.length===0||state.time-activeTrail.at(-1).time>=.04){activeTrail.push({x:state.x,y:state.y,z:state.z,time:state.time});if(activeTrail.length>600)activeTrail.shift();}
 }
 function updateForecast(wall){
-  if(!practicing||finished||wall-lastForecast<300)return;lastForecast=wall;const p={...state,captureImpacts:false},points=[point(p)];
-  for(let i=0;i<110;i++){stepPlayer(p,{},map,TICK,CT_CONFIG);if(i%3===0)points.push(point(p));if(p.stuck||p.teleports||p.pushes)break;}
-  forecast.geometry.dispose();forecast.geometry=new THREE.BufferGeometry().setFromPoints(points);forecast.computeLineDistances();
+  if(!practicing)return;
+  if(wall-lastTrail>100){updateTrail();lastTrail=wall;}
+  if(!live.ready||live.busy||wall-lastForecast<280)return;
+  const interval=lastForecast>0?(wall-lastForecast)/1000:.28;turnRate=Math.max(-2,Math.min(2,mouseTurn/interval));mouseTurn=0;lastForecast=wall;live.busy=true;
+  worker.postMessage({type:'forecast',seq:++live.seq,epoch:live.epoch,state,options:{target:study.target,input:heldInput(),turnRate,goalEnabled:$('goal-enabled').checked,hasDeparted:Boolean(context.exit&&!context.contacted)}});
+}
+function forecastText(result){
+  if(!result)return live.error?'indisponível':'calculando…';
+  if(!result.valid)return 'nova previsão…';
+  if(!result.gate)return 'sem cruzar · 2,8 s';
+  return `${fmt(result.gate.error)} u${result.gate.hit?' · dentro':' · fora'}`;
+}
+function updateLiveHud(){
+  const action=liveAction(),info=surfaceAdvice(state),input=heldInput(),packet=live.result;
+  const phase={ground:'NO CHÃO · PREPARE O EMBALO',ramp:'NA RAMPA · LEIA A FACE',air:'NO AR · CURVE COM O EMBALO',ladder:'NA ESCADA',water:'NA ÁGUA'}[info.stage];
+  $('phase').textContent=phase;$('entry-label').textContent='PREVISÃO · SEUS COMANDOS';$('goal-label').textContent='PREVISÃO · SUGESTÃO';
+  const targeting=$('goal-enabled').checked&&!packet?.targetBehind;
+  $('entry').textContent=targeting?forecastText(packet?.current):'voo livre';$('goal').textContent=targeting?forecastText(packet?.suggested):'sem alvo à frente';
+  const right=action.input.right??0,key=right>0?'D':right<0?'A':'',delta=wrap(action.yaw-state.yaw),angle=delta*180/Math.PI;
+  const turn=Math.abs(angle)<2?'Alinhe com o embalo':`Mouse ${angle>0?'à direita':'à esquerda'} · ${fmt(Math.min(180,Math.abs(angle)))}°`;
+  const title={ground:action.input.jump?'Pule agora e solte W/S':'W para ganhar embalo; escolha a entrada',ramp:`${key} para pressionar esta face`,air:`${key} + giro suave para aproveitar o embalo`,ladder:'A direção da mira muda a subida',water:'W + Espaço para sair da água'}[info.stage];
+  $('advice-title').textContent=title;
+  $('advice').textContent=info.stage==='ramp'?`${turn}. Experimente sair mais alto ou mais à frente e compare as previsões.`:info.stage==='air'?`${turn}. ${state.vz>0?`Ápice em cerca de ${fmt(info.secondsToApex,1)} s sem nova colisão.`:'Você está descendo; strafe curva o voo, mas não suspende a queda.'}`:info.stage==='ground'?'Na base CT, a sugestão marca o salto perto da borda. O guia acompanha a linha que você escolher.':info.stage==='ladder'?'A/S/D dependem de qual face você toca e do ângulo da mira. Siga a tecla contornada e experimente o mouse.':'A previsão usa o mesmo movimento e as colisões do jogo.';
+  if(live.error)$('advice').textContent+=' Previsão indisponível; os controles continuam livres.';
+  showKeys(input,action.input);$('mouse').textContent='Contorno = sugestão';$('turn-arrow').textContent=Math.abs(angle)<2?'↑':angle>0?'→':'←';$('turn-label').textContent=turn;$('turn-needle').style.left=`${50+Math.max(-45,Math.min(45,angle))}%`;
+}
+function showKeys(input,best={}){
+  for(const [key,on,recommended] of [['w',input.forward>0,best.forward>0],['a',input.right<0,best.right<0],['s',input.forward<0,best.forward<0],['d',input.right>0,best.right>0],['jump',input.jump,best.jump]]){
+    $('key-'+key).classList.toggle('on',Boolean(on));$('key-'+key).classList.toggle('best',Boolean(recommended));
+  }
 }
 function updateHud(){
-  if(!state||!run)return;const vh=Math.hypot(state.vx,state.vy),help=coach(state,run),reference=practicing?help.reference:state,phase=practicing?context.exit?'voo':context.entry?'rampa':state.grounded?'base':'entrada':state.phase;
-  $('phase').textContent=finished&&practicing?'TENTATIVA ENCERRADA':{base:'1 · CORRIDA NA BASE CT',entrada:'2 · PULO DE ENTRADA',rampa:'3 · CONTATO NA RAMPA',voo:'4 · SAÍDA / VOO'}[phase];
-  $('speed').textContent=fmt(vh);$('vertical').textContent=`${state.vz>=0?'+':''}${fmt(state.vz)} u/s`;$('total').textContent=`${fmt(Math.hypot(vh,state.vz))} u/s`;
-  const impact=practicing?context.entryImpact:run.entryImpact;$('entry').textContent=impact?`${fmt(impact.beforeHorizontal)} u/s`:run.kind==='controlled'?`${fmt(run.entry.speed)} u/s*`:'aguardando';
-  const gate=practicing?context.gate:time>=run.duration?run.gate:null;$('goal').textContent=gate?gate.hit?'ACERTOU':`${fmt(gate.error)} u · falhou`:'alvo travado';
-  const title=finished&&practicing?context.gate?.hit?'Alvo atingido no ar':'Compare sua tentativa':phase==='base'?'W até a linha verde; depois pule':phase==='entrada'?'Solte W/S; coordene A/D e mouse':phase==='rampa'?'D mantém esta face; escolha a saída':'Não há sustentação: a gravidade continua';
-  $('advice-title').textContent=title;
-  $('advice').textContent=finished&&practicing?'R repete o estado inicial escolhido. Esc volta para comparar os ensaios.':practicing?`Guia: ${help.key}${help.jump?' + Espaço':''}; ${help.mouse}. Distância da linha: ${fmt(help.distance)} u.`:phase==='base'?'A linha do pulo fica na borda da base. A saída real começa sem velocidade imposta.':phase==='entrada'?run.options.boost?'A/D alternam com o giro da mira e acrescentam velocidade antes do impacto.':'Neste ensaio, o pulo segue sem strafe. Observe VH e velocidade total antes/depois do choque.':phase==='rampa'?run.options.exitYaw?'Perto da marca de saída, vire um pouco à direita mantendo D para subir à crista.':'A mira segue em frente e D mantém contato até a borda frontal.':'A crista pode ganhar altura com menor VH. A frente pode sair mais rápida e passar abaixo do alvo.';
-  const input=practicing?{forward:keys.has('KeyW'),right:Number(keys.has('KeyD'))-Number(keys.has('KeyA')),jump:keys.has('Space')}:reference.input;
-  for(const [key,on,best] of [['w',input.forward,reference.input.forward],['a',input.right<0,reference.input.right<0],['d',input.right>0,reference.input.right>0],['jump',input.jump,help.jump||reference.input.jump]]){$('key-'+key).classList.toggle('on',Boolean(on));$('key-'+key).classList.toggle('best',Boolean(best));}
-  $('mouse').textContent=practicing?help.mouse:reference.input.right?'mouse + strafe':'mira à frente';$('clock').textContent=`${fmt(time,2)} s`;$('timeline').value=time;$('toggle').textContent=playing?'Ⅱ':'▶';
+  if(!state||!run)return;
+  const vh=Math.hypot(state.vx,state.vy);$('speed').textContent=fmt(vh);$('vertical').textContent=`${state.vz>=0?'+':''}${fmt(state.vz)} u/s`;$('total').textContent=`${fmt(Math.hypot(vh,state.vz))} u/s`;
+  if(practicing){updateLiveHud();return;}
+  const phase=state.phase,impact=run.entryImpact,gate=time>=run.duration?run.gate:null;
+  $('phase').textContent={base:'EXEMPLO · CORRIDA NA BASE CT',entrada:'EXEMPLO · PULO DE ENTRADA',rampa:'EXEMPLO · CONTATO NA RAMPA',voo:'EXEMPLO · SAÍDA / VOO'}[phase]??'EXEMPLO GRAVADO';
+  $('entry-label').textContent='ANTES DO IMPACTO';$('goal-label').textContent='RESULTADO NO ALVO';
+  $('entry').textContent=impact?`${fmt(impact.beforeHorizontal)} u/s`:run.kind==='controlled'?`${fmt(run.entry.speed)} u/s*`:'aguardando';
+  $('goal').textContent=gate?gate.hit?'ACERTOU':`${fmt(gate.error)} u · fora`:'alvo opcional';
+  $('advice-title').textContent='Exemplo gravado · você pode escolher outra linha';
+  $('advice').textContent=phase==='base'?'Observe o salto perto da borda. Entre no jogo para receber sugestões sobre o seu movimento.':phase==='rampa'?'D mantém esta face nesta direção. A crista troca parte da velocidade horizontal por subida.':'Observe VH e VZ separadamente. A gravidade continua agindo durante o voo.';
+  showKeys(state.input??{});$('mouse').textContent='Comandos deste exemplo';$('turn-arrow').textContent='↑';$('turn-label').textContent='Reprodução';$('turn-needle').style.left='50%';
+  $('clock').textContent=`${fmt(time,2)} s`;$('timeline').value=time;$('toggle').textContent=playing?'Ⅱ':'▶';
 }
 function animate(wall){
   requestAnimationFrame(animate);if(!study)return;const elapsed=last==null?0:Math.min(.05,(wall-last)/1000);last=wall;
-  if(practicing){if(!finished){accumulator+=elapsed;while(accumulator>=TICK){practiceTick();accumulator-=TICK;if(finished)break;}}updateForecast(wall);}
+  if(practicing){accumulator+=elapsed;while(accumulator>=TICK){practiceTick();accumulator-=TICK;}updateForecast(wall);}
   else{if(playing){time=Math.min(run.duration,time+elapsed*Number($('rate').value));if(time>=run.duration)playing=false;}state=frameAt(run,time);}
   document.body.classList.toggle('overview',$('camera').value==='overview');
-  const reference=practicing?coach(state,run).reference:state;ghost.position.copy(point(reference));ghost.visible=$('guides').checked&&(practicing?point(reference).distanceTo(point(state))>40:$('camera').value==='overview');
+  ghost.position.copy(point(state));ghost.visible=!practicing&&$('guides').checked&&$('camera').value==='overview';
+  selectedLine.visible=routeMarkers.visible=!practicing;guideGroup.visible=$('guides').checked;comparisonGroup.visible=!practicing&&$('other-paths').checked;markerGroup.visible=$('goal-enabled').checked;
+  document.body.classList.toggle('guide-hidden',!$('guides').checked);$('target-badge').hidden=!$('goal-enabled').checked;
+  if(performance.now()>noticeUntil)$('live-notice').hidden=true;
   if(practicing||$('camera').value==='first'){camera.position.set(...toRenderPoint(state.x,state.y,state.z+(state.eye??17)));const d=toRenderForward(state.yaw,state.pitch);camera.lookAt(camera.position.x+d[0],camera.position.y+d[1],camera.position.z+d[2]);}
   else{camera.position.set(...toRenderPoint(3000,-2150,1700));camera.lookAt(...toRenderPoint(-470,-2130,-450));}
   for(const group of [routeMarkers,markerGroup])for(const label of group.children)if(label.userData.label){const distance=label.position.distanceTo(camera.position),width=140*2*distance*Math.tan(camera.fov*Math.PI/360)/canvas.clientHeight;label.scale.set(width,width*96/512,1);}
-  forecast.visible=practicing&&$('guides').checked;updateHud();world.update(wall/1000);renderer.render(scene,camera);
+  forecast.visible=suggestion.visible=practicing&&$('guides').checked;updateHud();world.update(wall/1000);renderer.render(scene,camera);
 }
 $('family').onchange=familyChanged;$('trial').onchange=()=>selectRun($('trial').value);$('precision').onchange=calculate;
 $('toggle').onclick=()=>{if(time>=run.duration)time=0;playing=!playing;};$('demo').onclick=()=>{time=0;playing=true;};$('restart').onclick=()=>{time=0;playing=true;};$('timeline').oninput=()=>{time=Number($('timeline').value);playing=false;};$('practice').onclick=practice;
 $('compare').onclick=()=>{$('results').hidden=false;updateResults();};$('close-results').onclick=()=>$('results').hidden=true;
-$('guides').onchange=()=>guideGroup.visible=$('guides').checked;$('other-paths').onchange=()=>comparisonGroup.visible=$('other-paths').checked;
+$('guides').onchange=()=>guideGroup.visible=$('guides').checked;
+$('goal-enabled').onchange=()=>{clearForecast();if(practicing)notice($('goal-enabled').checked?'Alvo ligado. Escolha a saída que quiser.':'Alvo desligado. Continue surfando com o guia.');};$('other-paths').onchange=()=>comparisonGroup.visible=$('other-paths').checked;
 window.addEventListener('resize',()=>{resize();if(study&&!$('results').hidden)drawScan();});document.addEventListener('visibilitychange',()=>{if(document.hidden){playing=false;if(practicing)stopPractice();}});
 try{
-  const response=await fetch('./maps/surf_ski_2.bsp');if(!response.ok)throw new Error(`Mapa: HTTP ${response.status}`);map=new BspMap(await response.arrayBuffer());world=buildBspScene(map,renderer,scene);resize();await calculate();
-  window.ctLab=Object.freeze({snapshot:()=>({ready:true,practicing,finished,playing,time,selected:run.id,family:$('family').value,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,target:{...study.target},config:CT_CONFIG,state:sampleState(state),manual:context?{entry:context.entry,exit:context.exit,gate:context.gate}:null,result:{hit:run.hit,entry:run.entryImpact,exit:run.exit,gate:run.gate},cases:study.cases.map(r=>({id:r.id,hit:r.hit,error:r.gate?.error,entry:r.entryImpact?.beforeHorizontal,exit:r.exit?.speed})),limits:study.limits})});requestAnimationFrame(animate);
+  const response=await fetch('./maps/surf_ski_2.bsp');if(!response.ok)throw new Error(`Mapa: HTTP ${response.status}`);map=new BspMap(await response.arrayBuffer());world=buildBspScene(map,renderer,scene);resize();setupWorker();await calculate();
+  window.ctLab=Object.freeze({snapshot:()=>({ready:true,practicing,finished,playing,time,selected:run.id,family:$('family').value,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,target:{...study.target},config:CT_CONFIG,state:sampleState(state),guide:{ready:live.ready,updates:live.updates,source:live.source,status:live.result?.status,action:practicing?liveAction():null,goalEnabled:$('goal-enabled').checked,error:live.error},manual:context?{entry:context.entry,exit:context.exit,gate:context.gate,hits:context.hits}:null,result:{hit:run.hit,entry:run.entryImpact,exit:run.exit,gate:run.gate},cases:study.cases.map(r=>({id:r.id,hit:r.hit,error:r.gate?.error,entry:r.entryImpact?.beforeHorizontal,exit:r.exit?.speed})),limits:study.limits})});requestAnimationFrame(animate);
 }catch(e){$('loading').hidden=true;$('error').hidden=false;$('error').textContent=`Não foi possível preparar o estudo: ${e.message}`;console.error(e);}
