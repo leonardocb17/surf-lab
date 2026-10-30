@@ -50,4 +50,11 @@ experimental single-player visual/movement adaptation, not a full CS runtime.
 External base-game WAD textures were not bundled; new procedural materials replace
 missing surfaces. The optional Ninja WAV was not imported. Doors/buttons/breakables
 remain static, dynamic changetarget/multisource logic is not reproduced, and enabled
-hurt brushes serve as practice reset zones. Original-map control/profile limits above apply.
+hurt brushes warn in continuous-training mode or reset the entry in original-damage mode.
+World BSP pools and func_water are both recognized. Water-edge jumps use independently
+implemented GoldSrc behavior (225u/s, point clearance checks and a limited waterjump timer);
+ordinary swimming and push integration remain adapted. Original-map profile limits above apply.
+Watchable routes replay captured keyboard/view commands from the native zero-speed CT start.
+Their checkpoints, original damage avoidance and arrivals are independently revalidated.
+Routes cover the main circuits/stages; optional secrets/password rooms are disclosed separately.
+Searches are finite and do not establish a global mathematical optimum.

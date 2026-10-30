@@ -1,5 +1,5 @@
-import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261029-ct';
-import {SURF} from './movement-rules.mjs?v=20261029-jumps';
+import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261030-guide';
+import {SURF} from './movement-rules.mjs?v=20261030-guide';
 export const CT_CONFIG=Object.freeze({...SURF,groundAcceleration:5,stopSpeed:75,maxVelocity:2000});
 export const TARGET=Object.freeze({x:-550,y:-700,z:-860,radius:80});
 export const RAMP=Object.freeze({ridgeX:-495,frontY:-1000,minY:-3300,maxY:-950,minX:-760,maxX:-230});

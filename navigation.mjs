@@ -1,12 +1,12 @@
-import {CLASSIC_MAPS} from './classic-maps.mjs?v=20261029-classics';
+import {CLASSIC_MAPS} from './classic-maps.mjs?v=20261030-guide';
 export const MODES=Object.freeze([
-  ...CLASSIC_MAPS.map(map=>({id:map.navId,group:'Mapas clássicos',title:map.id==='surf_ski_2'?'surf_ski_2 livre':map.name,href:map.id==='surf_ski_2'?'./ski2.html?v=20261029-classics':`./remaster.html?map=${map.id}&v=20261029-classics`,tag:map.tag,description:map.description,art:'map',preview:map.preview})),
+  ...CLASSIC_MAPS.map(map=>({id:map.navId,group:'Mapas clássicos',title:map.id==='surf_ski_2'?'surf_ski_2 livre':map.name,href:map.id==='surf_ski_2'?'./ski2.html?v=20261030-guide':`./remaster.html?map=${map.id}&v=20261029-classics`,tag:map.id==='surf_ski_2'?map.tag:'Guia ao vivo · gabarito',description:map.description+(map.id==='surf_ski_2'?'':' Guia ao vivo e percurso completo para assistir.'),art:'map',preview:map.preview})),
   {id:'fundamentos',group:'Percursos de surf',title:'Fundamentos',href:'./index.html?fase=fundamentos',tag:'01 · Comece aqui',description:'Seis rampas para aprender A/D, mouse e transferências.',art:'ramps'},
   {id:'abismo',group:'Percursos de surf',title:'Abismo',href:'./index.html?fase=abismo',tag:'02 · Avançado',description:'Transferências maiores, saídas altas e controle do voo.',art:'gap'},
   {id:'voo',group:'Percursos de surf',title:'Voo livre',href:'./index.html?fase=voo',tag:'03 · Longo alcance',description:'Desça, ganhe embalo e passe vários segundos no ar.',art:'flight'},
   {id:'lateral',group:'Percursos de surf',title:'Arcos laterais',href:'./index.html?fase=lateral&destino=wide',tag:'04 · Deslocamento lateral',description:'Curvas amplas para alcançar alvos distantes dos dois lados.',art:'arc'},
-  {id:'ct',group:'Laboratórios',title:'Guia CT e gabaritos',href:'./ct.html?v=20261029-classics',tag:'Guia ao vivo · surf_ski_2',description:'Saia do CT, assista aos percursos e ajuste a cfg antes de jogar.',art:'map'},
-  {id:'jumps',group:'Laboratórios',title:'Laboratório do pulo',href:'./jumps.html?v=20261029-classics',tag:'Estudo de física',description:'Compare agachamento, velocidade, strafe e alcance.',art:'jump'},
+  {id:'ct',group:'Laboratórios',title:'Guia CT e gabaritos',href:'./ct.html?v=20261030-guide',tag:'Guia ao vivo · surf_ski_2',description:'Saia do CT, assista aos percursos e ajuste a cfg antes de jogar.',art:'map'},
+  {id:'jumps',group:'Laboratórios',title:'Laboratório do pulo',href:'./jumps.html?v=20261030-guide',tag:'Estudo de física',description:'Compare agachamento, velocidade, strafe e alcance.',art:'jump'},
 ]);
 const requested=new URLSearchParams(location.search),classic=CLASSIC_MAPS.find(m=>m.id===requested.get('map'));
 const current=classic?.navId||document.querySelector('[data-mode-nav]')?.dataset.modeNav||requested.get('fase')||'home';

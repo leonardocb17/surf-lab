@@ -1,5 +1,5 @@
-import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261029-jumps';
-import {BODY,STOCK,SURF,JUMP_SPEED} from './movement-rules.mjs?v=20261029-jumps';
+import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261030-guide';
+import {BODY,STOCK,SURF,JUMP_SPEED} from './movement-rules.mjs?v=20261030-guide';
 export {BODY,STOCK,SURF,JUMP_SPEED,TICK};
 export function createStudyMap(obstacles=false){
   const boxes=obstacles?[{x:100,y:-100,z:0,w:100,d:200,h:56},{x:440,y:-100,z:0,w:100,d:200,h:64}]:[];

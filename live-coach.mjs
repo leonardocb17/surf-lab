@@ -1,7 +1,7 @@
 // State-based advisory only. Forecasts use the same movement controller as play.
 // No recorded trajectory is consulted and inputs are never mutated.
-import {stepPlayer,TICK,spawnPlayer} from './goldsrc.mjs?v=20261029-ct';
-import {CT_CONFIG,TARGET,wrap} from './ct-physics.mjs?v=20261029-final';
+import {stepPlayer,TICK,spawnPlayer} from './goldsrc.mjs?v=20261030-guide';
+import {CT_CONFIG,TARGET,wrap} from './ct-physics.mjs?v=20261030-guide';
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
 const speed=s=>Math.hypot(s.vx,s.vy);
