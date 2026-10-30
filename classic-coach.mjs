@@ -1,5 +1,5 @@
-import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261030-guide';
-import {originalHazard} from './classic-maps.mjs?v=20261030-guide';
+import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261030-guides';
+import {originalHazard} from './classic-maps.mjs?v=20261030-guides';
 export const wrap=x=>Math.atan2(Math.sin(x),Math.cos(x));
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
@@ -63,6 +63,9 @@ export function suggestedAction(state,run,offset=0){
     yaw=heading+offset;
     if(Math.abs(wrap(yaw-state.yaw))>.35)input.right=0;
   }
+  // Follow the local clearance posture as well as the route direction. In a water
+  // exit, keep the standing feet wet until the original impulse has finished.
+  if(run.frames[anchor.index].input?.duck&&(!state.waterJumpTime||state.waterLevel===0))input.duck=true;
   return {input,yaw,stage,anchor};
 }
 function hydrate(state,map){return {...spawnPlayer(map),...structuredClone(state),captureImpacts:false,impacts:[]};}

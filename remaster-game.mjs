@@ -1,11 +1,11 @@
 import * as THREE from './vendor/three.module.min.js';
-import {BspMap,physicsPoint} from './bsp.mjs?v=20261030-guide';
-import {spawnPlayer,stepPlayer,ladderPracticeEntry,TICK} from './goldsrc.mjs?v=20261030-guide';
-import {PROFILES} from './movement-rules.mjs?v=20261030-guide';
-import {buildBspScene} from './bsp-render.mjs?v=20261030-guide';
+import {BspMap,physicsPoint} from './bsp.mjs?v=20261030-guides';
+import {spawnPlayer,stepPlayer,ladderPracticeEntry,TICK} from './goldsrc.mjs?v=20261030-guides';
+import {PROFILES} from './movement-rules.mjs?v=20261030-guides';
+import {buildBspScene} from './bsp-render.mjs?v=20261030-guides';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
-import {createClassicGuide} from './classic-guide-ui.mjs?v=20261030-guide';
-import {CLASSIC_MAPS,findClassicMap,practiceEntry,originalHazard} from './classic-maps.mjs?v=20261030-guide';
+import {createClassicGuide} from './classic-guide-ui.mjs?v=20261030-guides';
+import {CLASSIC_MAPS,findClassicMap,practiceEntry,originalHazard} from './classic-maps.mjs?v=20261030-guides';
 const $=id=>document.getElementById(id),canvas=$('view'),keys=new Set();
 const fmt=(n,d=0)=>n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}),clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const requestedMap=new URLSearchParams(location.search).get('map')??(document.body.classList.contains('classic-viewer')?'surf_green':'surf_ski_2'),mapInfo=findClassicMap(requestedMap);
@@ -83,7 +83,7 @@ function frame(wall){
 try{
   document.title=`${mapInfo.name} · Surf Lab Remaster`;
   for(const [id,value] of [['map-title',mapInfo.name],['map-name',mapInfo.name],['map-description',mapInfo.description],['map-author',mapInfo.author]])if($(id))$(id).textContent=value;
-  if($('classic-map')){$('classic-map').replaceChildren(...CLASSIC_MAPS.map(m=>new Option(m.name,m.id)));$('classic-map').value=mapInfo.id;$('classic-map').onchange=()=>{const next=findClassicMap($('classic-map').value);location.href=next.id==='surf_ski_2'?'./ski2.html?v=20261030-guide':`./remaster.html?map=${next.id}&v=20261029-classics`;};}
+  if($('classic-map')){$('classic-map').replaceChildren(...CLASSIC_MAPS.map(m=>new Option(m.name,m.id)));$('classic-map').value=mapInfo.id;$('classic-map').onchange=()=>{const next=findClassicMap($('classic-map').value);location.href=next.id==='surf_ski_2'?'./ski2.html?v=20261030-guides':`./remaster.html?map=${next.id}&v=20261029-classics`;};}
   const response=await fetch(mapInfo.file);if(!response.ok)throw new Error(`Mapa: HTTP ${response.status}`);
   map=new BspMap(await response.arrayBuffer());world=buildBspScene(map,renderer,scene,{theme:mapInfo.theme});training=practiceEntry(map,mapInfo.id);
   const bounds=new THREE.Box3().setFromObject(world.group),size=bounds.getSize(new THREE.Vector3());viewCenter=bounds.getCenter(new THREE.Vector3());viewDistance=Math.max(size.x,size.y,size.z,1000)*1.18;camera.far=Math.max(22000,viewDistance*3);camera.updateProjectionMatrix();

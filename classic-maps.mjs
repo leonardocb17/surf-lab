@@ -1,5 +1,5 @@
-import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261030-guide';
-import {physicsPoint} from './bsp.mjs?v=20261030-guide';
+import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261030-guides';
+import {physicsPoint} from './bsp.mjs?v=20261030-guides';
 // Original BSPs are byte-exact. Themes only affect rendering.
 export const CLASSIC_MAPS=Object.freeze([
  {id:'surf_ski_2',navId:'ski2',name:'surf_ski_2',file:'./maps/surf_ski_2.bsp',author:'Super Mario',description:'O clássico das bases e rampas centrais, com escadas, piscina e teleportes.',tag:'Clássico aberto',preview:'./previews/surf_ski_2.jpg',sha256:'e45838152f7efb91d82f12bcd88793c0cb150dbc20523f0db4ec7fa3965f3524',theme:null},

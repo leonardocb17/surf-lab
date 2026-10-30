@@ -1,5 +1,5 @@
-import {physicsPoint} from './bsp.mjs?v=20261030-guide';
-import {BODY,SURF,STAMINA_RESET,jumpSpeed,ladderVelocity,bunnyLimit,airAccelerate} from './movement-rules.mjs?v=20261030-guide';
+import {physicsPoint} from './bsp.mjs?v=20261030-guides';
+import {BODY,SURF,STAMINA_RESET,jumpSpeed,ladderVelocity,bunnyLimit,airAccelerate} from './movement-rules.mjs?v=20261030-guides';
 export const TICK=.01;
 export const CONFIG=SURF;
 const dot=(v,n)=>v.x*n.x+v.y*n.y+v.z*n.z;

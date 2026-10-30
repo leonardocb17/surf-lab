@@ -1,11 +1,11 @@
 import * as THREE from './vendor/three.module.min.js';
 import {widePath} from './wide-path.mjs';
 import {toRenderPoint} from './view-space.mjs';
-import {frameAt,routeStart,suggestedAction,wrap} from './classic-coach.mjs?v=20261030-guide';
+import {frameAt,routeStart,suggestedAction,wrap} from './classic-coach.mjs?v=20261030-guides';
 const $=id=>document.getElementById(id),degrees=x=>x*180/Math.PI;
 const fmt=(n,d=0)=>Number(n).toLocaleString('pt-BR',{maximumFractionDigits:d});
 export async function createClassicGuide({map,mapInfo,scene,config,onWatch,onTrain}){
-  const response=await fetch(`./routes/${mapInfo.id}.json?v=20261030-guide`);
+  const response=await fetch(`./routes/${mapInfo.id}.json?v=20261030-guides`);
   if(!response.ok)throw new Error('Gabarito ainda não disponível.');
   const data=await response.json(),routes=data.routes;
   const state={run:null,result:null,ready:false,busy:false,epoch:0,updates:0,source:null,lastForecast:-1000,mouse:0,error:null,watching:false,playing:false,time:0};
@@ -14,7 +14,7 @@ export async function createClassicGuide({map,mapInfo,scene,config,onWatch,onTra
   const current=widePath(0xffb347,6,{dashed:true}),suggestion=widePath(0x7cf2cd,8),nearReference=widePath(0x68b9f2,6,{opacity:.75});group.add(current,suggestion,nearReference);
   const marker=new THREE.Mesh(new THREE.TorusGeometry(65,5,8,48),new THREE.MeshBasicMaterial({color:0x93f1d5,depthTest:false}));marker.rotation.x=Math.PI/2;group.add(marker);
   const ghost=new THREE.Mesh(new THREE.CapsuleGeometry(16,40,4,8),new THREE.MeshBasicMaterial({color:0xe9f9f3,wireframe:true}));ghost.rotation.x=Math.PI/2;group.add(ghost);
-  const worker=new Worker(new URL('./classic-worker.mjs?v=20261030-guide',import.meta.url),{type:'module'});
+  const worker=new Worker(new URL('./classic-worker.mjs?v=20261030-guides',import.meta.url),{type:'module'});
   const resetForecast=()=>{state.result=null;state.source=null;state.busy=false;state.lastForecast=-1000;state.mouse=0;state.referenceIndex=null;current.setPoints([]);suggestion.setPoints([]);nearReference.setPoints([]);};
   const choice=()=>routes.find(r=>r.id===$('guide-route').value)??routes[0];
   function preparePaths(run){

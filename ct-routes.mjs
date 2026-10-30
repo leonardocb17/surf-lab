@@ -1,6 +1,6 @@
 // Reproducible CT command policies. Every accepted route is replayed through stepPlayer.
-import {stepPlayer,TICK} from './goldsrc.mjs?v=20261030-guide';
-import {CT_CONFIG,TARGET,ctStart,isInitialRamp,sampleState,crossing,wrap} from './ct-physics.mjs?v=20261030-guide';
+import {stepPlayer,TICK} from './goldsrc.mjs?v=20261030-guides';
+import {CT_CONFIG,TARGET,ctStart,isInitialRamp,sampleState,crossing,wrap} from './ct-physics.mjs?v=20261030-guides';
 const labels={ramp:'Primeiro contato na rampa CT',connector:'Plataforma após a rampa CT',airtarget:'Alvo no ar · raio 80 u',basin:'Piscina na base da torre',central:'Impulsionador central',jailed:'Prisão pelo teleporte do chão'};
 const descriptions={ramp:'W, salto na borda, soltura de W e primeiro contato.',connector:'W, salto, D na face e um giro de0,25rad após Y=-1400.',airtarget:'W, salto, D na face e um giro de0,15rad após Y=-1500.',basin:'Saída pela crista, curva para contornar a plataforma e entrada na água.',central:'Saída para a plataforma, novo salto e curva até o impulsionador original.',jailed:'W até cair no teleporte original do chão. A prisão tem porta estática nesta adaptação.'};
 const point=s=>({x:s.x,y:s.y,z:s.z});

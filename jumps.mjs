@@ -1,6 +1,6 @@
-import {simulateJump,createStudyMap,heights,STOCK,SURF,BODY,TICK} from './jump-sim.mjs?v=20261030-guide';
-import {spawnPlayer,stepPlayer} from './goldsrc.mjs?v=20261030-guide';
-import {STAMINA_RESET} from './movement-rules.mjs?v=20261030-guide';
+import {simulateJump,createStudyMap,heights,STOCK,SURF,BODY,TICK} from './jump-sim.mjs?v=20261030-guides';
+import {spawnPlayer,stepPlayer} from './goldsrc.mjs?v=20261030-guides';
+import {STAMINA_RESET} from './movement-rules.mjs?v=20261030-guides';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
 const $=id=>document.getElementById(id),colors=['#86b9f3','#efc386','#8de5d0'],fmt=(v,d=1)=>v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
 let mode='duck',runs=[],focus=2,time=.335,playing=false,last=null,manualActive=false,manual=null,queuedJump=false,manualAccumulator=0;

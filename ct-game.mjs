@@ -1,12 +1,12 @@
 import * as THREE from './vendor/three.module.min.js';
-import {BspMap} from './bsp.mjs?v=20261030-guide';
-import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261030-guide';
+import {BspMap} from './bsp.mjs?v=20261030-guides';
+import {spawnPlayer,stepPlayer,TICK} from './goldsrc.mjs?v=20261030-guides';
 import {buildBspScene} from './bsp-render.mjs?v=20261028-remaster';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
-import {CT_CONFIG,TARGET,ctStart,prepareStudy,frameAt,sampleState,isInitialRamp,crossing,impactMetrics,wrap} from './ct-physics.mjs?v=20261030-guide';
-import {widePath} from './wide-path.mjs?v=20261030-guide';
-import {CFG_FIELDS,CFG_PRESETS,normalizeConfig,configKey} from './ct-settings.mjs?v=20261030-guide';
-import {suggestedAction,surfaceAdvice} from './live-coach.mjs?v=20261030-guide';
+import {CT_CONFIG,TARGET,ctStart,prepareStudy,frameAt,sampleState,isInitialRamp,crossing,impactMetrics,wrap} from './ct-physics.mjs?v=20261030-guides';
+import {widePath} from './wide-path.mjs?v=20261030-guides';
+import {CFG_FIELDS,CFG_PRESETS,normalizeConfig,configKey} from './ct-settings.mjs?v=20261030-guides';
+import {suggestedAction,surfaceAdvice} from './live-coach.mjs?v=20261030-guides';
 const $=id=>document.getElementById(id),fmt=(n,d=0)=>Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
 const edgeName=edge=>({front:'frente',ridge:'crista',corner:'quina frente/crista',side:'lateral'}[edge]??'sem saída');
 const canvas=$('view'),keys=new Set(),renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
@@ -28,7 +28,7 @@ function notice(text){$('live-notice').textContent=text;$('live-notice').hidden=
 function setForecast(line,points=[]){line.setPoints(points);}
 function clearForecast(){live.epoch++;live.result=null;live.source=null;lastForecast=-100;mouseTurn=0;turnRate=0;setForecast(forecast);setForecast(suggestion);}
 function setupWorker(){
-  worker=new Worker(new URL('./live-worker.mjs?v=20261030-guide',import.meta.url),{type:'module'});
+  worker=new Worker(new URL('./live-worker.mjs?v=20261030-guides',import.meta.url),{type:'module'});
   worker.onmessage=({data})=>{
     if(data.type==='ready'){live.ready=true;requestCatalog();return;}
     if(data.type==='catalog'){if(data.key===configKey(activeConfig)){atlas.catalog=data.catalog;atlas.key=data.key;atlas.status='ready';renderCatalog();}return;}

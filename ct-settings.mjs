@@ -1,4 +1,4 @@
-import {CT_CONFIG} from './ct-physics.mjs?v=20261030-guide';
+import {CT_CONFIG} from './ct-physics.mjs?v=20261030-guides';
 export const CFG_FIELDS=Object.freeze([
   {key:'gravity',label:'Gravidade',cvar:'sv_gravity',min:100,max:1600,step:50},
   {key:'airAcceleration',label:'Aceleração aérea',cvar:'sv_airaccelerate',min:0,max:1000,step:10},
