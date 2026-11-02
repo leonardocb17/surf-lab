@@ -1,5 +1,5 @@
 import {BspMap} from './bsp.mjs?v=20261030-guides';
-import {replayRoute,liveGuide} from './classic-coach.mjs?v=20261030-guides';
+import {replayRoute,liveGuide} from './classic-coach.mjs?v=20261102-mario';
 let map,routes=[],run,config;
 self.onmessage=({data})=>{
   try{

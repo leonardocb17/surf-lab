@@ -14,11 +14,28 @@ export function replayRoute(map,route,config){
   const state=routeStart(map,route),frames=[snapshot(state)],checkpoints=new Map(route.checkpoints.map(c=>[c.tick,c]));
   const spawn=spawnPlayer(map,route.team??'ct');
   if(distance(state,spawn)>.001||Math.hypot(state.vx,state.vy,state.vz)>.001)return {verified:false,reason:'O mapa completo deve começar na base original, sem impulso artificial.'};
+  const ladderBoost=route.travelMode==='ladder-boost';
+  if(ladderBoost&&(!route.requiredLadders?.length||!route.requiredPushes?.length||!route.expectedTeleports?.length)){
+    return {verified:false,reason:'Faltam as etapas originais do percurso.'};
+  }
+  const ladders=new Set(),pushes=new Set();
   let contacts=0,maxAir=0,reason=null,portal=0;
   for(let i=0;i<route.commands.length;i++){
     const [yaw,pitch,forward,right,jump,duck]=route.commands[i],input={forward,right,jump:Boolean(jump),duck:Boolean(duck)};
     if(!route.commands[i].every(Number.isFinite)||![forward,right].every(n=>[-1,0,1].includes(n))||![jump,duck].every(n=>[0,1].includes(n))){reason='O gabarito precisa usar teclas reais e ângulos finitos.';break;}
+    const previousPushes=state.pushes;
     state.yaw=yaw;state.pitch=pitch;stepPlayer(state,input,map,TICK,config);
+    if(ladderBoost){
+      for(const id of state.triggerIds){
+        const kind=map.models[id]?.entity?.classname;
+        if(state.onLadder&&kind==='func_ladder')ladders.add(id);
+        if(state.pushes>previousPushes&&kind==='trigger_push')pushes.add(id);
+      }
+      const tick=i+1;
+      if(tick===route.milestones?.ascentImpulseTick&&state.pushes===previousPushes){
+        reason='O impulso não ocorreu no ponto marcado.';break;
+      }
+    }
     if(ramp(state))contacts++;
     maxAir=Math.max(maxAir,state.airTime);
     if(state.stuck||map.trace(state,state,state.crouched?3:1).startSolid){reason='O percurso entrou numa colisão sólida.';break;}
@@ -30,16 +47,32 @@ export function replayRoute(map,route,config){
   }
   if(!reason&&distance(state,route.destination)>route.radius)reason='A chegada não foi confirmada neste perfil.';
   if(!reason&&portal<(route.expectedTeleports?.length??0))reason='O percurso não completou as etapas originais na ordem esperada.';
-  if(!reason&&contacts<30)reason='Contato de surf insuficiente.';
+  if(!reason&&ladderBoost&&(!route.requiredLadders.every(id=>ladders.has(id))||!route.requiredPushes.every(id=>pushes.has(id)))){
+    reason='A reprodução não confirmou a escada ou o impulso original.';
+  }
+  if(!reason&&!ladderBoost&&contacts<30)reason='Contato de surf insuficiente.';
   return {verified:!reason,reason,frames,duration:state.time,contacts,maxAir,definition:route};
 }
 export function frameAt(run,time){
   const f=clamp(time/TICK,0,run.frames.length-1),index=Math.floor(f),a=run.frames[index],b=run.frames[Math.min(index+1,run.frames.length-1)],t=f-index;
-  if(a.teleports!==b.teleports)return {...a,input:{...b.input},mouseRate:0,time};
+  if(a.teleports!==b.teleports){
+    const input=run.definition.travelMode==='ladder-boost'?a.input:b.input;
+    return {...a,input:{...input},mouseRate:0,time};
+  }
   const state={...a,input:{...(b.input??a.input)}};
   for(const k of ['x','y','z','vx','vy','vz','eye','pitch'])state[k]=a[k]+(b[k]-a[k])*t;
   state.yaw=a.yaw+wrap(b.yaw-a.yaw)*t;state.time=time;
   state.mouseRate=index&&b.teleports===run.frames[index-1].teleports?wrap((b.commandYaw??b.yaw)-(run.frames[index-1].commandYaw??run.frames[index-1].yaw))/(2*TICK):0;
+  if(run.definition.travelMode==='ladder-boost'){
+    // Use the recorded command that produced the displayed position.
+    const commandIndex=Math.min(run.frames.length-1,Math.ceil(f-1e-8));
+    const command=run.frames[commandIndex];
+    const previous=run.frames[Math.max(0,commandIndex-1)];
+    state.input={...command.input};
+    const sameSegment=command.teleports===previous.teleports;
+    state.mouseRate=sameSegment?wrap((command.commandYaw??command.yaw)-(previous.commandYaw??previous.yaw))/TICK:0;
+    state.mousePitchRate=sameSegment?((command.commandPitch??command.pitch)-(previous.commandPitch??previous.pitch))/TICK:0;
+  }
   return state;
 }
 export function routeAnchor(state,run){
