@@ -1,13 +1,15 @@
+import {createVelocityHUD} from './velocity-hud.mjs?v=20261102-telemetry';
 import * as THREE from './vendor/three.module.min.js';
-import {BspMap,physicsPoint} from './bsp.mjs?v=20261030-guides';
-import {spawnPlayer,stepPlayer,ladderPracticeEntry,TICK} from './goldsrc.mjs?v=20261030-guides';
-import {PROFILES} from './movement-rules.mjs?v=20261030-guides';
-import {buildBspScene} from './bsp-render.mjs?v=20261030-guides';
+import {BspMap,physicsPoint} from './bsp.mjs?v=20261102-telemetry';
+import {spawnPlayer,stepPlayer,ladderPracticeEntry,TICK} from './goldsrc.mjs?v=20261102-telemetry';
+import {PROFILES} from './movement-rules.mjs?v=20261102-telemetry';
+import {buildBspScene} from './bsp-render.mjs?v=20261102-telemetry';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
-import {createClassicGuide} from './classic-guide-ui.mjs?v=20261030-guides';
-import {CLASSIC_MAPS,findClassicMap,practiceEntry,originalHazard} from './classic-maps.mjs?v=20261030-guides';
+import {createClassicGuide} from './classic-guide-ui.mjs?v=20261102-telemetry';
+import {CLASSIC_MAPS,findClassicMap,practiceEntry,originalHazard} from './classic-maps.mjs?v=20261102-telemetry';
 const $=id=>document.getElementById(id),canvas=$('view'),keys=new Set();
 const fmt=(n,d=0)=>n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}),clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const velocityHUD=createVelocityHUD(document.querySelector('.speed'));
 const requestedMap=new URLSearchParams(location.search).get('map')??(document.body.classList.contains('classic-viewer')?'surf_green':'surf_ski_2'),mapInfo=findClassicMap(requestedMap);
 let training=null,viewCenter=new THREE.Vector3(),viewDistance=6000,hazardResets=0,hazardWarnings=0,lastHazardId=-1,guide=null;
 let map,world,state,active=false,freeFly=false,accumulator=0,lastFrame=null,sensitivity=.14*Math.PI/180,noticeUntil=0,jumpQueued=false,timeScale=1;
@@ -49,7 +51,7 @@ $('shadows').onchange=e=>{renderer.shadowMap.enabled=e.target.checked;world.mate
 function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}window.addEventListener('resize',resize);resize();
 function hud(){
   $('time-scale-badge').textContent=`Tempo ${fmt(timeScale,timeScale===1?0:2)}× · 1 / 2 / 3`;
-  const speed=Math.hypot(state.vx,state.vy);$('speed').textContent=fmt(speed);$('vertical').textContent=`horizontal · ${state.vz>=0?'↑':'↓'} ${fmt(Math.abs(state.vz))} u/s vertical`;
+  velocityHUD(state,PROFILES[$('profile').value].gravity,{freeFly});
   $('status').textContent=guide?.state.watching?'GABARITO COMPLETO':active?freeFly?'EXPLORAÇÃO AÉREA':'MOUSE CAPTURADO':'PAUSADO';$('air').textContent=`No ar: ${fmt(state.airTime,2)} s`;$('counts').textContent=`Impulsos ${state.pushes} · Teleportes ${state.teleports}${guide?` · Dano ${hazardWarnings}`:''}`;
   for(const key of ['w','a','s','d']){$('key-'+key).classList.toggle('on',keys.has('Key'+key.toUpperCase()));$('key-'+key).classList.remove('best');}
   if($('key-jump')){$('key-jump').classList.toggle('on',keys.has('Space'));$('key-jump').classList.remove('best');}
@@ -83,12 +85,13 @@ function frame(wall){
 try{
   document.title=`${mapInfo.name} · Surf Lab Remaster`;
   for(const [id,value] of [['map-title',mapInfo.name],['map-name',mapInfo.name],['map-description',mapInfo.description],['map-author',mapInfo.author]])if($(id))$(id).textContent=value;
-  if($('classic-map')){$('classic-map').replaceChildren(...CLASSIC_MAPS.map(m=>new Option(m.name,m.id)));$('classic-map').value=mapInfo.id;$('classic-map').onchange=()=>{const next=findClassicMap($('classic-map').value);location.href=next.id==='surf_ski_2'?'./ski2.html?v=20261030-guides':`./remaster.html?map=${next.id}&v=20261029-classics`;};}
+  if($('classic-map')){$('classic-map').replaceChildren(...CLASSIC_MAPS.map(m=>new Option(m.name,m.id)));$('classic-map').value=mapInfo.id;$('classic-map').onchange=()=>{const next=findClassicMap($('classic-map').value);location.href=next.id==='surf_ski_2'?'./ski2.html?v=20261102-telemetry':`./remaster.html?map=${next.id}&v=20261102-telemetry`;};}
   const response=await fetch(mapInfo.file);if(!response.ok)throw new Error(`Mapa: HTTP ${response.status}`);
   map=new BspMap(await response.arrayBuffer());world=buildBspScene(map,renderer,scene,{theme:mapInfo.theme});training=practiceEntry(map,mapInfo.id);
   const bounds=new THREE.Box3().setFromObject(world.group),size=bounds.getSize(new THREE.Vector3());viewCenter=bounds.getCenter(new THREE.Vector3());viewDistance=Math.max(size.x,size.y,size.z,1000)*1.18;camera.far=Math.max(22000,viewDistance*3);camera.updateProjectionMatrix();
   $('entry').querySelector('option[value=ramp]').disabled=!training;$('entry').querySelector('option[value=ladder]').disabled=!map.triggers.some(t=>t.entity.classname==='func_ladder');
-  if(mapInfo.id!=='surf_ski_2'){$('entry').value='ct';$('entry').querySelector('option[value=ramp]').textContent='Treino rápido · rampa com 550 u/s horizontais';}
+  $('entry').value='ct';
+  if(mapInfo.id!=='surf_ski_2')$('entry').querySelector('option[value=ramp]').textContent='Treino rápido · rampa com 550 u/s horizontais';
   reset(false);
   if(mapInfo.id!=='surf_ski_2'){createClassicGuide({map,mapInfo,scene,config:()=>PROFILES[$('profile').value],onWatch:()=>{active=false;freeFly=false;keys.clear();if(document.pointerLockElement)document.exitPointerLock();$('menu').hidden=true;document.body.classList.remove('menu-open');lastFrame=null;},onTrain:()=>{$('entry').value='route';play(false);}}).then(value=>guide=value).catch(error=>{$('guide-note').textContent=error.message;console.warn(error.message);});}
   const api=Object.freeze({snapshot:()=>({...state,triggerIds:undefined,active,freeFly,timeScale,mapId:mapInfo.id,mapName:mapInfo.name,theme:world.theme,preservedTextures:world.preservedTextures,hazardResets,hazardWarnings,damageMode:$('damage-mode')?.value??'original',guide:guide?.snapshot(),originalHash:mapInfo.sha256,practiceFace:training?.face,entry:$('entry').value,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,faces:map.faces.length,renderedFaces:world.renderedFaces,triangles:world.triangles,models:map.models.length,collisionSolids:map.solids.length,config:PROFILES[$('profile').value]}),capturePreview:()=>{const savedPosition=camera.position.clone(),savedQuaternion=camera.quaternion.clone();camera.position.copy(viewCenter).add(new THREE.Vector3(-1,1,.8).normalize().multiplyScalar(viewDistance));camera.lookAt(viewCenter);renderer.render(scene,camera);const data=canvas.toDataURL('image/jpeg',.88);camera.position.copy(savedPosition);camera.quaternion.copy(savedQuaternion);return data;}});window.surfMap=api;if(mapInfo.id==='surf_ski_2')window.ski2=api;

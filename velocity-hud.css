@@ -1,0 +1,23 @@
+.velocity-hud{--velocity-number:40px;width:340px;max-width:100%;padding:12px 16px;border:1px solid #7799aa66;border-radius:8px;background:#0b202dee;color:#edf5f8;text-align:left;font:12px 'Segoe UI',Arial,sans-serif;letter-spacing:normal;white-space:normal;text-shadow:none;font-variant-numeric:tabular-nums;pointer-events:none}
+.velocity-main{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.velocity-metric+.velocity-metric{border-left:1px solid #7799aa55;padding-left:18px}
+.velocity-label{display:block;font-size:10px;letter-spacing:1px;color:#d1e4ee}
+.velocity-label small{font-size:9px;letter-spacing:0;color:#a8bfcc;margin-left:3px}
+.velocity-hud .velocity-metric strong{display:block;font-size:40px;font-weight:450;line-height:1.2;letter-spacing:-1px;color:#f0f8fa;white-space:nowrap}
+.velocity-hud #speed,.velocity-hud #vertical,.velocity-hud #manual-speed,.velocity-hud #manual-vertical{font-size:var(--velocity-number);margin:0;line-height:1.2;letter-spacing:-1px}
+.velocity-hud[data-vertical=up] #vertical,.velocity-hud[data-vertical=up] #manual-vertical{color:#91efd0}
+.velocity-hud[data-vertical=down] #vertical,.velocity-hud[data-vertical=down] #manual-vertical{color:#f1c389}
+.velocity-total,.velocity-axes,.velocity-apex{border-top:1px solid #7799aa40;margin-top:9px;padding-top:8px;display:flex;justify-content:space-between;gap:5px 12px;flex-wrap:wrap;align-items:baseline}
+.velocity-total span,.velocity-apex>span{font-size:9px;letter-spacing:.6px;color:#b6cedb}
+.velocity-total b{font-size:17px;font-weight:500}
+.velocity-axes span{font-size:11px;color:#c4d9e4}.velocity-axes b{font-size:12px;font-weight:500;color:#f0f8fa;margin-left:5px}
+.velocity-hud .velocity-axes small,.velocity-hud .velocity-apex small{flex-basis:100%;display:block;font-size:10px;color:#b6cedb;margin:0;line-height:1.3}
+.velocity-apex>b{font-size:16px;font-weight:500;color:#91efd0}
+.bottom:has(>.velocity-hud){display:grid;grid-template-columns:1fr 340px 1fr;gap:18px;align-items:end}
+.bottom>.velocity-hud{position:static;transform:none}.bottom>.stats{justify-self:end}
+.speed-hud.velocity-hud{position:static;transform:none}.bottom-hud:has(>.velocity-hud){align-items:end}
+.telemetry:has(>.velocity-hud){width:330px}.telemetry>.velocity-hud{--velocity-number:34px;width:100%;margin:12px 0;padding:10px 12px}
+.manual-bottom>.velocity-hud{margin:0 auto 10px}.manual-bottom #manual-stats{font-size:11px}
+@media(max-width:900px){.bottom:has(>.velocity-hud){grid-template-columns:1fr 310px 1fr;gap:9px}.velocity-hud{--velocity-number:35px;width:310px;padding:10px 12px}.velocity-main{gap:12px}.velocity-metric+.velocity-metric{padding-left:12px}}
+@media(max-width:700px){.bottom:has(>.velocity-hud){left:12px;right:12px;bottom:47px;grid-template-columns:1fr 1fr;gap:8px}.bottom>.velocity-hud{grid-column:1/-1;grid-row:1;justify-self:center;width:min(340px,100%)}.bottom>.stats{grid-column:2;grid-row:2;font-size:9px}.bottom>.velocity-hud+.stats{align-self:center}.bottom>.velocity-hud~.stats{line-height:1.4}.bottom-hud:has(>.velocity-hud){display:grid;grid-template-columns:1fr 1fr;gap:8px;bottom:48px}.bottom-hud>.velocity-hud{grid-column:1/-1;grid-row:1;justify-self:center}.bottom-hud>.run-hud{grid-column:2;grid-row:2}.bottom-hud>.input-hud{grid-column:1;grid-row:2}.telemetry:has(>.velocity-hud){width:min(310px,calc(100vw - 24px))}.velocity-hud{--velocity-number:34px}.telemetry>.velocity-hud{--velocity-number:30px}.velocity-total,.velocity-axes,.velocity-apex{padding-top:5px;margin-top:6px}.manual-bottom>.velocity-hud{width:min(340px,calc(100vw - 28px))}}
+@media(max-height:560px){.velocity-hud,.telemetry>.velocity-hud{--velocity-number:28px;padding:7px 11px;width:310px}.velocity-total,.velocity-axes,.velocity-apex{padding-top:4px;margin-top:4px}.velocity-hud .velocity-axes small{display:none}.telemetry:has(>.velocity-hud){max-height:calc(100vh - 105px);overflow:auto;pointer-events:auto}}

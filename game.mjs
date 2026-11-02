@@ -1,7 +1,9 @@
+import {createVelocityHUD} from './velocity-hud.mjs?v=20261102-telemetry';
 import * as THREE from './vendor/three.module.min.js';
 import {DT,GRAVITY,clamp,angleDelta,createCourse,rampHeight,spawn,step,policy,applyControl,recommend,coastPrediction,airMetrics,isFlightCourse} from './physics.mjs?v=20261028-arcos';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
 
+const velocityHUD=createVelocityHUD(document.querySelector('.speed-hud'));
 const $=id=>document.getElementById(id);
 const canvas=$('view'),menu=$('menu'),error=$('error');
 const held={a:false,d:false};
@@ -203,7 +205,7 @@ function drawRouteMap(){
   ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(player.x,player.y,3.5,0,Math.PI*2);ctx.fill();ctx.restore();
 }
 function updateHUD(){
-  $('speed').textContent=format(Math.hypot(state.vx,state.vy));$('vertical').textContent=`${state.vz>=0?'↑':'↓'} ${format(Math.abs(state.vz))} u/s vertical${isFlightCourse(course)?` · ${format(Math.hypot(state.vx,state.vy,state.vz))} total`:''}`;
+  velocityHUD(state,GRAVITY);
   $('speed').style.color=state.airGain< -1?'#f2bf7c':'';
   $('ramp-label').textContent=isFlightCourse(course)?`${flightName()} · ${goal().name}`:`${courseMode==='abyss'?'Abismo':'Fundamentos'} · ${state.progress} / ${course.length}`;
   const stage=isFlightCourse(course)?(state.outcome==='won'?3:!state.contact?2:state.x<6000?0:1):state.progress-1;

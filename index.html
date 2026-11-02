@@ -6,7 +6,7 @@
   <meta name="description" content="Treine grandes deslocamentos laterais no surf, com alvos dos dois lados, mapa da curva, demonstração e guia de A/D e mouse.">
   <title>Surf Lab · treino de movimento</title>
   <link rel="stylesheet" href="./style.css?v=20261028-arcos">
-<link rel="stylesheet" href="./navigation.css?v=20261030-guides"></head>
+<link rel="stylesheet" href="./navigation.css?v=20261102-telemetry"><link rel="stylesheet" href="./velocity-hud.css?v=20261102-telemetry"></head>
 <body>
   <main id="game">
     <canvas id="view" aria-label="Percurso de surf em primeira pessoa. Use A/D e mova o mouse livremente depois de iniciar."></canvas>
@@ -55,7 +55,7 @@
         <div class="menu-controls"><span><kbd>A</kbd><kbd>D</kbd> movimento</span><span><kbd>R</kbd> checkpoint</span><span><kbd>Shift</kbd> + <kbd>R</kbd> início</span><span><kbd>Esc</kbd> soltar mouse</span></div>
         <div class="menu-bottom"><button id="restart" class="text-button">Recomeçar o percurso</button><span>Física simplificada do GoldSrc</span></div>
         <details id="flight-help"><summary>Como alcançar a próxima rampa?</summary><ol><li><b>Embalo:</b> use a parte baixa da face antes da saída, preservando velocidade.</li><li><b>Saída subindo:</b> suba a face perto da borda. A velocidade vertical positiva cria o arco do salto.</li><li><b>Strafe aéreo:</b> A + mouse suave à esquerda, ou D + mouse suave à direita. Acompanhe o guia e a barra de aceleração; virar demais pode frear.</li><li><b>Recepção:</b> planeje a curva cedo e alivie o giro para encostar na face da próxima rampa. Troque A/D quando o guia pedir.</li></ol><p>Olhar para cima não gera sustentação. A gravidade continua em 800 u/s²; strafe muda o alcance e a direção horizontal. Soltar as teclas preserva a velocidade horizontal que você já tem.</p></details>
-        <details><summary>Por que dá para ficar tanto tempo no ar?</summary><p>No Voo livre, a descida gera embalo e a curva final redireciona a velocidade para cima. Você sai alto e com impulso vertical, sobe por alguns segundos e depois cai por mais alguns. Ao mesmo tempo, a velocidade horizontal leva você muito longe. O strafe ajuda a escolher a direção e a preservar ou ganhar velocidade, sem desligar a gravidade.</p><p>Esta fase é um percurso original inspirado na sensação dos grandes saltos do surf_ski_2; não é uma reprodução do mapa. A velocidade total inclui a componente vertical, enquanto o mostrador principal informa apenas a horizontal.</p></details>
+        <details><summary>Por que dá para ficar tanto tempo no ar?</summary><p>No Voo livre, a descida gera embalo e a curva final redireciona a velocidade para cima. Você sai alto e com impulso vertical, sobe por alguns segundos e depois cai por mais alguns. Ao mesmo tempo, a velocidade horizontal leva você muito longe. O strafe ajuda a escolher a direção e a preservar ou ganhar velocidade, sem desligar a gravidade.</p><p>Esta fase é um percurso original inspirado na sensação dos grandes saltos do surf_ski_2; não é uma reprodução do mapa. A velocidade total inclui a componente vertical, e o painel separa horizontal, vertical e resultante total.</p></details>
         <details><summary>Como deslocar tanto para o lado sem cair?</summary><p>Comece a curva logo após sair da rampa. Use A com um giro suave à esquerda, ou D com um giro suave à direita. Acompanhe o ponto verde; mirar de uma vez na ilha pode frear em vez de produzir um arco eficiente.</p><p>O mapa mostra a curva prevista em verde e o caminho que você fez em branco. Deslocamento lateral é a distância para o lado desde a saída, medida no eixo original da rampa. O tempo de queda continua sendo limitado pela altura e pelo impulso vertical; o strafe redireciona a velocidade horizontal.</p></details>
         <details><summary>Como funciona o guia?</summary><p>Projeta os movimentos futuros na física deste treino. Fundamentos e Abismo comparam alternativas; Voo livre e Arcos laterais preveem uma curva até o destino escolhido. Verde: previsão com o guia. Laranja: previsão sem A/D a partir do mesmo instante. As cores não prometem um pouso garantido. A barra mede ganho de velocidade horizontal em relação ao melhor ganho de um passo, não a qualidade do pouso.</p><p>Simulação simplificada inspirada no GoldSrc, com airaccelerate 100 e colisões por ponto. Não reproduz o corpo do jogador nem todas as configurações de um servidor CS 1.6. <a href="https://github.com/ValveSoftware/halflife/blob/master/pm_shared/pm_shared.c" target="_blank" rel="noopener noreferrer">Referência: movimento do Half-Life SDK, Valve.</a></p></details>
       </div>
@@ -63,6 +63,6 @@
     <div id="toast" class="toast" role="status" hidden></div>
     <div id="loading" class="loading">Preparando o percurso…</div>
   </main>
-  <script type="module" src="./game.mjs?v=20261030-guides"></script>
-<script type="module" src="./navigation.mjs?v=20261030-guides"></script></body>
+  <script type="module" src="./game.mjs?v=20261102-telemetry"></script>
+<script type="module" src="./navigation.mjs?v=20261102-telemetry"></script></body>
 </html>

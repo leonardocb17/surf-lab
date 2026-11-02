@@ -1,10 +1,12 @@
-import {simulateJump,createStudyMap,heights,STOCK,SURF,BODY,TICK} from './jump-sim.mjs?v=20261030-guides';
-import {spawnPlayer,stepPlayer} from './goldsrc.mjs?v=20261030-guides';
-import {STAMINA_RESET} from './movement-rules.mjs?v=20261030-guides';
+import {createVelocityHUD} from './velocity-hud.mjs?v=20261102-telemetry';
+import {simulateJump,createStudyMap,heights,STOCK,SURF,BODY,TICK} from './jump-sim.mjs?v=20261102-telemetry';
+import {spawnPlayer,stepPlayer} from './goldsrc.mjs?v=20261102-telemetry';
+import {STAMINA_RESET} from './movement-rules.mjs?v=20261102-telemetry';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
 const $=id=>document.getElementById(id),colors=['#86b9f3','#efc386','#8de5d0'],fmt=(v,d=1)=>v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
 let mode='duck',runs=[],focus=2,time=.335,playing=false,last=null,manualActive=false,manual=null,queuedJump=false,manualAccumulator=0;
 const held=new Set();
+const manualVelocityHUD=createVelocityHUD($('manual-velocity'),{prefix:'manual-'});
 function configuration(){return {...($('air-profile').value==='surf'?SURF:STOCK),bunnyCap:$('bunny-cap').checked,stamina:true};}
 function frameAt(run,t){return run.frames[Math.min(run.frames.length-1,Math.max(0,Math.floor((t+1e-8)/TICK)))];}
 function rebuild(){
@@ -102,6 +104,7 @@ function manualFrame(dt){
   while(manualAccumulator>=TICK){const input={forward:Number(held.has('KeyW'))-Number(held.has('KeyS')),right:Number(held.has('KeyD'))-Number(held.has('KeyA')),jump:queuedJump||held.has('Space'),duck:held.has('ControlLeft')||held.has('ControlRight')};queuedJump=false;stepPlayer(s,input,map,TICK,configuration());s.peakFeet=Math.max(s.peakFeet,heights(s).feet);manualAccumulator-=TICK;}
   if(renderer.domElement.width!==Math.round(innerWidth*renderer.getPixelRatio())||renderer.domElement.height!==Math.round(innerHeight*renderer.getPixelRatio())){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
   camera.position.set(...toRenderPoint(s.x,s.y,s.z+s.eye));const d=toRenderForward(s.yaw,s.pitch);camera.lookAt(new THREE.Vector3(camera.position.x+d[0],camera.position.y+d[1],camera.position.z+d[2]));renderer.render(scene,camera);
+  manualVelocityHUD(s,configuration().gravity);
   $('manual-stats').textContent=`${s.crouched?'AGACHADO':'EM PÉ'} · ${s.grounded?'NO CHÃO':'NO AR'} · ${fmt(Math.hypot(s.vx,s.vy),0)} u/s · Pés: ${fmt(heights(s).feet)} u · Máximo dos pés: ${fmt(s.peakFeet)} u`;
 }
 function frame(now){requestAnimationFrame(frame);const dt=last==null?0:Math.min(.05,(now-last)/1000);last=now;if(manualActive){manualFrame(dt);return;}if(playing){time=Math.min(Number($('timeline').max),time+dt*Number($('rate').value));if(time>=Number($('timeline').max))playing=false;paint();}}
