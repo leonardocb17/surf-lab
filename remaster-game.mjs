@@ -1,17 +1,18 @@
-import {createVelocityHUD} from './velocity-hud.mjs?v=20261102-telemetry';
+import {createSkiStudy} from './ski-study.mjs?v=20261102-ski-study';
+import {createVelocityHUD} from './velocity-hud.mjs?v=20261102-ski-study';
 import * as THREE from './vendor/three.module.min.js';
-import {BspMap,physicsPoint} from './bsp.mjs?v=20261102-telemetry';
-import {spawnPlayer,stepPlayer,ladderPracticeEntry,TICK} from './goldsrc.mjs?v=20261102-telemetry';
-import {PROFILES} from './movement-rules.mjs?v=20261102-telemetry';
-import {buildBspScene} from './bsp-render.mjs?v=20261102-telemetry';
+import {BspMap,physicsPoint} from './bsp.mjs?v=20261102-ski-study';
+import {spawnPlayer,stepPlayer,ladderPracticeEntry,TICK} from './goldsrc.mjs?v=20261102-ski-study';
+import {PROFILES} from './movement-rules.mjs?v=20261102-ski-study';
+import {buildBspScene} from './bsp-render.mjs?v=20261102-ski-study';
 import {toRenderPoint,toRenderForward} from './view-space.mjs';
-import {createClassicGuide} from './classic-guide-ui.mjs?v=20261102-telemetry';
-import {CLASSIC_MAPS,findClassicMap,practiceEntry,originalHazard} from './classic-maps.mjs?v=20261102-telemetry';
+import {createClassicGuide} from './classic-guide-ui.mjs?v=20261102-ski-study';
+import {CLASSIC_MAPS,findClassicMap,practiceEntry,originalHazard} from './classic-maps.mjs?v=20261102-ski-study';
 const $=id=>document.getElementById(id),canvas=$('view'),keys=new Set();
 const fmt=(n,d=0)=>n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}),clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const velocityHUD=createVelocityHUD(document.querySelector('.speed'));
 const requestedMap=new URLSearchParams(location.search).get('map')??(document.body.classList.contains('classic-viewer')?'surf_green':'surf_ski_2'),mapInfo=findClassicMap(requestedMap);
-let training=null,viewCenter=new THREE.Vector3(),viewDistance=6000,hazardResets=0,hazardWarnings=0,lastHazardId=-1,guide=null;
+let training=null,viewCenter=new THREE.Vector3(),viewDistance=6000,hazardResets=0,hazardWarnings=0,lastHazardId=-1,guide=null,skiStudy=null;
 let map,world,state,active=false,freeFly=false,accumulator=0,lastFrame=null,sensitivity=.14*Math.PI/180,noticeUntil=0,jumpQueued=false,timeScale=1;
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=mapInfo.exposure??.95;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(65,1,1,22000);camera.up.set(0,0,1);const look=new THREE.Vector3();
@@ -22,6 +23,8 @@ function reset(visit=false){
   else if($('entry').value==='ladder'){const p=ladderPracticeEntry(map);if(p)Object.assign(state,p);}
   else if($('entry').value==='route'&&guide?.start())Object.assign(state,guide.start());
   else if($('entry').value==='ramp'&&training)Object.assign(state,training);
+  const studySeed=!visit&&skiStudy?.seed($('entry').value);if(studySeed)Object.assign(state,studySeed);
+  if(skiStudy){state.captureImpacts=true;skiStudy.reset(state);}
 }
 function menu(){guide?.reset();active=false;keys.clear();if(document.pointerLockElement)document.exitPointerLock();$('menu').hidden=false;document.body.classList.add('menu-open');}
 async function play(visit){
@@ -34,6 +37,7 @@ document.addEventListener('mousemove',e=>{if(active){state.yaw+=e.movementX*sens
 document.addEventListener('keydown',e=>{
   if(e.code==='Escape'){menu();return;}
   if(['INPUT','SELECT'].includes(e.target.tagName))return;
+  if(active&&skiStudy&&!e.repeat){const action=skiStudy.key(e.code);if(action){e.preventDefault();if(action==='reset')reset(false);return;}}
   if(e.code==='KeyH'&&!e.repeat&&guide){$('live-guide').checked=!$('live-guide').checked;return;}
   if(e.code==='Space'&&guide?.state.watching){e.preventDefault();guide.state.playing=!guide.state.playing;return;}
   if(e.code==='KeyR'&&!e.repeat&&guide?.state.watching){guide.state.time=0;guide.state.playing=true;return;}
@@ -74,26 +78,27 @@ function frame(wall){
   else if(active){accumulator+=elapsed*timeScale;while(accumulator>=TICK){
     const forward=Number(keys.has('KeyW'))-Number(keys.has('KeyS')),right=Number(keys.has('KeyD'))-Number(keys.has('KeyA')),jump=jumpQueued||keys.has('Space'),duck=keys.has('ControlLeft')||keys.has('ControlRight');jumpQueued=false;
     if(freeFly){const c=Math.cos(state.yaw),s=Math.sin(state.yaw),speed=900;state.vx=(c*forward-s*right)*speed;state.vy=(s*forward+c*right)*speed;state.vz=(Number(jump)-Number(duck))*speed;state.x+=state.vx*TICK;state.y+=state.vy*TICK;state.z+=state.vz*TICK;state.time+=TICK;}
-    else{stepPlayer(state,{forward,right,jump,duck},map,TICK,PROFILES[$('profile').value]);if(state.event)notice(state.event);const hazard=mapInfo.id!=='surf_ski_2'&&originalHazard(map,state),id=hazard?map.models.indexOf(hazard):-1;if(id!==lastHazardId&&hazard){hazardWarnings++;if($('damage-mode')?.value==='training')notice('Zona original de dano: no CS esta queda mata. Treino contínuo ativo.');}lastHazardId=id;if((hazard&&$('damage-mode')?.value==='original')||state.z<map.models[0].mins.z-500||!Number.isFinite(state.x+state.y+state.z)){hazardResets++;reset(false);notice(hazard?'Zona original de dano. Você voltou à entrada escolhida.':'Você voltou à entrada escolhida.');break;}}
+    else{stepPlayer(state,{forward,right,jump,duck},map,TICK,PROFILES[$('profile').value]);skiStudy?.tick(state,{forward,right,jump,duck});if(state.event)notice(state.event);const hazard=mapInfo.id!=='surf_ski_2'&&originalHazard(map,state),id=hazard?map.models.indexOf(hazard):-1;if(id!==lastHazardId&&hazard){hazardWarnings++;if($('damage-mode')?.value==='training')notice('Zona original de dano: no CS esta queda mata. Treino contínuo ativo.');}lastHazardId=id;if((hazard&&$('damage-mode')?.value==='original')||state.z<map.models[0].mins.z-500||!Number.isFinite(state.x+state.y+state.z)){hazardResets++;reset(false);notice(hazard?'Zona original de dano. Você voltou à entrada escolhida.':'Você voltou à entrada escolhida.');break;}}
     accumulator-=TICK;
   }}
   if(guide?.camera(camera)){}
   else if(!active&&!guide?.state.watching&&state.time===0){if(mapInfo.id==='surf_ski_2'){camera.position.set(-4400,5000,4100);camera.lookAt(-100,300,-500);}else{camera.position.copy(viewCenter).add(new THREE.Vector3(-1,1,.8).normalize().multiplyScalar(viewDistance));camera.lookAt(viewCenter);}}
   else{camera.position.set(...toRenderPoint(state.x,state.y,state.z+(freeFly?0:state.eye)));const dir=toRenderForward(state.yaw,state.pitch);look.set(camera.position.x+dir[0],camera.position.y+dir[1],camera.position.z+dir[2]);camera.lookAt(look);}
-  hud();guide?.update(state,{forward:Number(keys.has('KeyW'))-Number(keys.has('KeyS')),right:Number(keys.has('KeyD'))-Number(keys.has('KeyA')),jump:keys.has('Space'),duck:keys.has('ControlLeft')||keys.has('ControlRight')},wall,active,freeFly);world.update(wall/1000);renderer.render(scene,camera);
+  hud();skiStudy?.draw(state,camera,active,freeFly);guide?.update(state,{forward:Number(keys.has('KeyW'))-Number(keys.has('KeyS')),right:Number(keys.has('KeyD'))-Number(keys.has('KeyA')),jump:keys.has('Space'),duck:keys.has('ControlLeft')||keys.has('ControlRight')},wall,active,freeFly);world.update(wall/1000);renderer.render(scene,camera);
 }
 try{
   document.title=`${mapInfo.name} · Surf Lab Remaster`;
   for(const [id,value] of [['map-title',mapInfo.name],['map-name',mapInfo.name],['map-description',mapInfo.description],['map-author',mapInfo.author]])if($(id))$(id).textContent=value;
-  if($('classic-map')){$('classic-map').replaceChildren(...CLASSIC_MAPS.map(m=>new Option(m.name,m.id)));$('classic-map').value=mapInfo.id;$('classic-map').onchange=()=>{const next=findClassicMap($('classic-map').value);location.href=next.id==='surf_ski_2'?'./ski2.html?v=20261102-telemetry':`./remaster.html?map=${next.id}&v=20261102-telemetry`;};}
+  if($('classic-map')){$('classic-map').replaceChildren(...CLASSIC_MAPS.map(m=>new Option(m.name,m.id)));$('classic-map').value=mapInfo.id;$('classic-map').onchange=()=>{const next=findClassicMap($('classic-map').value);location.href=next.id==='surf_ski_2'?'./ski2.html?v=20261102-ski-study':`./remaster.html?map=${next.id}&v=20261102-ski-study`;};}
   const response=await fetch(mapInfo.file);if(!response.ok)throw new Error(`Mapa: HTTP ${response.status}`);
   map=new BspMap(await response.arrayBuffer());world=buildBspScene(map,renderer,scene,{theme:mapInfo.theme});training=practiceEntry(map,mapInfo.id);
   const bounds=new THREE.Box3().setFromObject(world.group),size=bounds.getSize(new THREE.Vector3());viewCenter=bounds.getCenter(new THREE.Vector3());viewDistance=Math.max(size.x,size.y,size.z,1000)*1.18;camera.far=Math.max(22000,viewDistance*3);camera.updateProjectionMatrix();
   $('entry').querySelector('option[value=ramp]').disabled=!training;$('entry').querySelector('option[value=ladder]').disabled=!map.triggers.some(t=>t.entity.classname==='func_ladder');
   $('entry').value='ct';
   if(mapInfo.id!=='surf_ski_2')$('entry').querySelector('option[value=ramp]').textContent='Treino rápido · rampa com 550 u/s horizontais';
+  if(mapInfo.id==='surf_ski_2')skiStudy=createSkiStudy({map,scene,config:()=>PROFILES[$('profile').value],select:$('entry'),notice});
   reset(false);
   if(mapInfo.id!=='surf_ski_2'){createClassicGuide({map,mapInfo,scene,config:()=>PROFILES[$('profile').value],onWatch:()=>{active=false;freeFly=false;keys.clear();if(document.pointerLockElement)document.exitPointerLock();$('menu').hidden=true;document.body.classList.remove('menu-open');lastFrame=null;},onTrain:()=>{$('entry').value='route';play(false);}}).then(value=>guide=value).catch(error=>{$('guide-note').textContent=error.message;console.warn(error.message);});}
-  const api=Object.freeze({snapshot:()=>({...state,triggerIds:undefined,active,freeFly,timeScale,mapId:mapInfo.id,mapName:mapInfo.name,theme:world.theme,preservedTextures:world.preservedTextures,hazardResets,hazardWarnings,damageMode:$('damage-mode')?.value??'original',guide:guide?.snapshot(),originalHash:mapInfo.sha256,practiceFace:training?.face,entry:$('entry').value,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,faces:map.faces.length,renderedFaces:world.renderedFaces,triangles:world.triangles,models:map.models.length,collisionSolids:map.solids.length,config:PROFILES[$('profile').value]}),capturePreview:()=>{const savedPosition=camera.position.clone(),savedQuaternion=camera.quaternion.clone();camera.position.copy(viewCenter).add(new THREE.Vector3(-1,1,.8).normalize().multiplyScalar(viewDistance));camera.lookAt(viewCenter);renderer.render(scene,camera);const data=canvas.toDataURL('image/jpeg',.88);camera.position.copy(savedPosition);camera.quaternion.copy(savedQuaternion);return data;}});window.surfMap=api;if(mapInfo.id==='surf_ski_2')window.ski2=api;
+  const api=Object.freeze({snapshot:()=>({...state,triggerIds:undefined,active,freeFly,timeScale,mapId:mapInfo.id,mapName:mapInfo.name,theme:world.theme,preservedTextures:world.preservedTextures,hazardResets,hazardWarnings,damageMode:$('damage-mode')?.value??'original',guide:guide?.snapshot(),study:skiStudy?.snapshot(),originalHash:mapInfo.sha256,practiceFace:training?.face,entry:$('entry').value,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,faces:map.faces.length,renderedFaces:world.renderedFaces,triangles:world.triangles,models:map.models.length,collisionSolids:map.solids.length,config:PROFILES[$('profile').value]}),capturePreview:()=>{const savedPosition=camera.position.clone(),savedQuaternion=camera.quaternion.clone();camera.position.copy(viewCenter).add(new THREE.Vector3(-1,1,.8).normalize().multiplyScalar(viewDistance));camera.lookAt(viewCenter);renderer.render(scene,camera);const data=canvas.toDataURL('image/jpeg',.88);camera.position.copy(savedPosition);camera.quaternion.copy(savedQuaternion);return data;}});window.surfMap=api;if(mapInfo.id==='surf_ski_2')window.ski2=api;
   $('loading').hidden=true;requestAnimationFrame(frame);
 }catch(error){$('loading').hidden=true;$('error').hidden=false;$('error').textContent=`Falha ao preparar o mapa: ${error.message}`;console.error(error);}
