@@ -5,3 +5,8 @@ body[data-mode=ct] #play-rate-badge{position:absolute;right:25px;bottom:50px;dis
 .classic-viewer #time-scale-badge{top:76px;right:30px;background:#102a36d9;padding:7px 10px;border-radius:4px}.classic-viewer.menu-open #time-scale-badge{display:none}@media(max-width:760px){.classic-viewer #time-scale-badge{top:58px;right:16px;font-size:9px}}
 
 body:is([data-mode=ski2],.classic-viewer) .menu{padding-top:108px;padding-bottom:36px}body.menu-open #notice{display:none}@media(max-width:760px){body:is([data-mode=ski2],.classic-viewer) .menu{padding-top:90px}}
+
+.shortcut-hint,.damage-note{font-size:11px;line-height:1.6;color:var(--muted)}
+.damage-note{grid-column:1/-1;margin:0}
+#map-replays>summary,#route-panel>summary{color:var(--mint);cursor:pointer;font-size:14px;font-weight:600}
+#map-replays[open]>summary,#route-panel[open]>summary{margin-bottom:12px}

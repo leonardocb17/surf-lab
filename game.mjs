@@ -1,3 +1,4 @@
+import {timeScaleShortcut, timeScaleLabel} from './play-controls.mjs';
 import {createVelocityHUD} from './velocity-hud.mjs?v=20261102-telemetry';
 import * as THREE from './vendor/three.module.min.js';
 import {DT,GRAVITY,clamp,angleDelta,createCourse,rampHeight,spawn,step,policy,applyControl,recommend,coastPrediction,airMetrics,isFlightCourse} from './physics.mjs?v=20261028-arcos';
@@ -107,7 +108,7 @@ const coastLine=new THREE.Line(coastGeometry,new THREE.LineDashedMaterial({color
 
 function setToast(text){$('toast').textContent=text;$('toast').hidden=false;toastUntil=performance.now()+2200;}
 function savePreferences(){try{localStorage.setItem('surf-lab-preferences',JSON.stringify({rate,sensitivity:sensitivity*180/Math.PI,guideVisible}));}catch{}}
-try{const saved=JSON.parse(localStorage.getItem('surf-lab-preferences')||'null');if(saved){if([.25,.5,1].includes(saved.rate))rate=saved.rate;if(Number.isFinite(saved.sensitivity))sensitivity=clamp(saved.sensitivity,.05,.3)*Math.PI/180;if(typeof saved.guideVisible==='boolean')guideVisible=saved.guideVisible;}}catch{}
+try{const saved=JSON.parse(localStorage.getItem('surf-lab-preferences')||'null');if(saved){if([.25,.4,.6,1].includes(saved.rate))rate=saved.rate;if(saved.rate===.5)rate=.6;if(Number.isFinite(saved.sensitivity))sensitivity=clamp(saved.sensitivity,.05,.3)*Math.PI/180;if(typeof saved.guideVisible==='boolean')guideVisible=saved.guideVisible;}}catch{}
 $('rate').value=String(rate);$('sensitivity').value=String(sensitivity*180/Math.PI);$('sensitivity-value').textContent=`${format(sensitivity*180/Math.PI,2)}° / px`;$('guide-toggle').checked=guideVisible;
 function updatePrediction(){
   if(!guide)return;
@@ -216,7 +217,7 @@ function updateHUD(){
   $('input-note').textContent=demo?'Demonstração automática':guideVisible?'Contorno verde: guia':'A / D para deslizar';
   $('motion-label').textContent=state.outcome==='won'?'Percurso concluído':state.outcome?'Você caiu':state.contact?state.vz>20?'Subindo na face':state.vz< -20?'Descendo na face':'Deslizando':'No ar';
   $('checkpoint-label').textContent=isFlightCourse(course)?'R · repetir o lançamento':`Checkpoint ${checkpoint+1} · R reinicia`;
-  $('session-label').textContent=demo?'DEMONSTRAÇÃO':active?(rate<1?`TREINO ${rate}×`:'MOUSE CAPTURADO'):'PAUSADO';
+  $('session-label').textContent=demo?'DEMONSTRAÇÃO':active?(rate<1?`TREINO ${timeScaleLabel(rate)}`:'MOUSE CAPTURADO'):'PAUSADO';
   document.body.classList.toggle('guide-off',!guideVisible);
   prediction.visible=ghost.visible=guideVisible;
   targets.forEach((target,i)=>{target.visible=isFlightCourse(course)?target.userData.rampId===course.goalId:i===Math.min(state.progress,course.length-1);});
@@ -281,6 +282,9 @@ document.addEventListener('keydown',event=>{
   if(event.code==='KeyR'&&!event.repeat){event.preventDefault();demo=false;resetRun(event.shiftKey);if(!active)setMenu();return;}
   if(event.code==='Escape'&&active){event.preventDefault();setMenu();return;}
   if(!active)return;
+  if(event.code==='Home'&&!event.repeat){event.preventDefault();demo=false;resetRun(true);setToast('De volta ao início.');return;}
+  const shortcut=timeScaleShortcut(event);
+  if(shortcut){event.preventDefault();setRate(shortcut);setToast(`Tempo ${timeScaleLabel(rate)}`);return;}
   if(event.code==='KeyA'||event.code==='KeyD'){event.preventDefault();if(demo){demo=false;setToast('Você assumiu o controle.');}held[event.code==='KeyA'?'a':'d']=true;}
   if(['KeyW','KeyS','Space'].includes(event.code))event.preventDefault();
 });
@@ -288,13 +292,11 @@ document.addEventListener('keyup',event=>{if(event.code==='KeyA')held.a=false;if
 window.addEventListener('blur',()=>{if(active)setMenu();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&active)setMenu();});
 $('play').addEventListener('click',()=>engage(false));$('demo').addEventListener('click',()=>engage(true));
 $('restart').addEventListener('click',()=>{demo=false;resetRun(true);setMenu();setToast('Percurso reiniciado.');});
-$('rate').addEventListener('change',event=>{rate=Number(event.target.value);savePreferences();});
+function setRate(value){rate=Number(value);$('rate').value=String(rate);savePreferences();}
+$('rate').addEventListener('change',event=>setRate(event.target.value));
 $('sensitivity').addEventListener('input',event=>{sensitivity=Number(event.target.value)*Math.PI/180;$('sensitivity-value').textContent=`${format(Number(event.target.value),2)}° / px`;savePreferences();});
 $('guide-toggle').addEventListener('change',event=>{guideVisible=event.target.checked;savePreferences();updateHUD();});
 function changeCourse(){
-  if($('course-select').value==='ct'){location.href='./ct.html';return;}
-  if($('course-select').value==='jumps'){location.href='./jumps.html';return;}
-  if($('course-select').value==='ski2'){location.href='./ski2.html';return;}
   courseMode=$('course-select').value;destination=$('destination').value;course=createCourse(false,courseMode,destination);state=spawn(course);checkpoint=0;demo=false;
   destination=goal()?.key||destination;
   buildCourse();resetRun(true);setMenu();
@@ -335,5 +337,5 @@ function frame(wall){
   look.set(camera.position.x+forward[0],camera.position.y+forward[1],camera.position.z+forward[2]);camera.lookAt(look);
   updateHUD();renderer.render(scene,camera);
 }
-window.surfLab=Object.freeze({snapshot:()=>({...state,active,demo,checkpoint,courseMode,destination:goal()?.key,peakSpeed,flight:flight?{...flight,elapsed:state.time-flight.start}:null,lastFlight,coastVisible:coastLine.visible,coastLanding:coast?.landed,airFeedback,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,ramps:course.length,guideInput:guide?.input,guideSafe:guide?.safe,cameraForward:camera.getWorldDirection(new THREE.Vector3()).toArray()})});
+window.surfLab=Object.freeze({snapshot:()=>({...state,active,demo,checkpoint,courseMode,timeScale:rate,destination:goal()?.key,peakSpeed,flight:flight?{...flight,elapsed:state.time-flight.start}:null,lastFlight,coastVisible:coastLine.visible,coastLanding:coast?.landed,airFeedback,pointerLocked:document.pointerLockElement===canvas,fullscreen:!!document.fullscreenElement,ramps:course.length,guideInput:guide?.input,guideSafe:guide?.safe,cameraForward:camera.getWorldDirection(new THREE.Vector3()).toArray()})});
 computeGuide();setMenu();$('loading').hidden=true;requestAnimationFrame(frame);

@@ -1,3 +1,4 @@
+import {timeScaleShortcut, timeScaleLabel} from './play-controls.mjs';
 import {createVelocityHUD} from './velocity-hud.mjs?v=20261102-telemetry';
 import * as THREE from './vendor/three.module.min.js';
 import {BspMap} from './bsp.mjs?v=20261102-telemetry';
@@ -103,11 +104,11 @@ async function calculate(){
   $('target-badge').textContent=`◎ ALVO OPCIONAL · RAIO ${study.target.radius} u`;$('loading').hidden=true;familyChanged();updateLineWidth();requestCatalog();
 }
 function stopPractice(){practicing=false;keys.clear();queuedJump=false;document.body.classList.remove('practicing');if(document.pointerLockElement===canvas)document.exitPointerLock();if(document.fullscreenElement)document.exitFullscreen?.().catch(()=>{});resize();state=frameAt(run,time);}
-function resetPractice(){
+function resetPractice(checkpoint=$('checkpoint').value){
   state=ctStart(map,activeConfig);let seed=null;
-  if($('checkpoint').value==='contact')seed=run.entry;else if($('checkpoint').value==='jump')seed=run.frames.find(p=>p.input.jump);
+  if(checkpoint==='contact')seed=run.entry;else if(checkpoint==='jump')seed=run.frames.find(p=>p.input.jump);
   if(seed)Object.assign(state,seed,{time:0,captureImpacts:true,impacts:[],contact:null,teleports:0,pushes:0,airTime:0});
-  context={entry:$('checkpoint').value==='contact'?sampleState(state):null,lastContact:null,gap:0,exit:null,landed:false,contacted:false,gate:null,entryImpact:null,hits:0};
+  context={entry:checkpoint==='contact'?sampleState(state):null,lastContact:null,gap:0,exit:null,landed:false,contacted:false,gate:null,entryImpact:null,hits:0};
   finished=false;accumulator=0;keys.clear();queuedJump=false;activeTrail=[];updateTrail();clearForecast();$('live-notice').hidden=true;
 }
 async function practice(){
@@ -118,7 +119,9 @@ document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElemen
 document.addEventListener('mousemove',e=>{if(practicing){const delta=e.movementX*.14*Math.PI/180;state.yaw+=delta;mouseTurn+=delta;state.pitch=Math.max(-1.55,Math.min(1.55,state.pitch-e.movementY*.14*Math.PI/180));}});
 document.addEventListener('keydown',e=>{
   if(!practicing)return;if(e.code==='Escape'){stopPractice();return;}if(e.code==='KeyR'&&!e.repeat){resetPractice();return;}
-  if(['Digit1','Digit2','Digit3'].includes(e.code)&&!e.repeat){$('play-rate').value=({Digit1:'1',Digit2:'0.5',Digit3:'0.25'})[e.code];notice(`Tempo ${$('play-rate').selectedOptions[0].textContent}`);return;}
+  if(e.code==='Home'&&!e.repeat){e.preventDefault();resetPractice('base');notice('Base CT');return;}
+  const shortcut=timeScaleShortcut(e);
+  if(shortcut){e.preventDefault();$('play-rate').value=String(shortcut);notice(`Tempo ${timeScaleLabel(shortcut)}`);return;}
   if(['KeyH','KeyG'].includes(e.code)&&!e.repeat){const toggle=$(e.code==='KeyH'?'guides':'goal-enabled');toggle.checked=!toggle.checked;toggle.dispatchEvent(new Event('change'));return;}
   if(['KeyW','KeyA','KeyS','KeyD','Space','ControlLeft','ControlRight'].includes(e.code)){e.preventDefault();keys.add(e.code);if(e.code==='Space'&&!e.repeat)queuedJump=true;}
 });document.addEventListener('keyup',e=>keys.delete(e.code));window.addEventListener('blur',()=>{if(practicing)stopPractice();});
@@ -154,7 +157,7 @@ function forecastText(result){
 function updateLiveHud(){
   const action=liveAction(),info=surfaceAdvice(state,activeConfig),input=heldInput(),packet=live.result;
   const phase={ground:'NO CHÃO · PREPARE O EMBALO',ramp:'NA RAMPA · LEIA A FACE',air:'NO AR · CURVE COM O EMBALO',ladder:'NA ESCADA',water:'NA ÁGUA'}[info.stage];
-  $('phase').textContent=phase;$('play-rate-badge').textContent=`Tempo ${fmt(Number($('play-rate').value),Number($('play-rate').value)===1?0:2)}×`;$('entry-label').textContent='PREVISÃO · SEUS COMANDOS';$('goal-label').textContent='PREVISÃO · SUGESTÃO';
+  $('phase').textContent=phase;$('play-rate-badge').textContent=`Tempo ${timeScaleLabel($('play-rate').value)}`;$('entry-label').textContent='PREVISÃO · SEUS COMANDOS';$('goal-label').textContent='PREVISÃO · SUGESTÃO';
   const targeting=$('goal-enabled').checked&&!packet?.targetBehind;
   $('entry').textContent=targeting?forecastText(packet?.current):'voo livre';$('goal').textContent=targeting?forecastText(packet?.suggested):'sem alvo à frente';
   const right=action.input.right??0,key=right>0?'D':right<0?'A':'',delta=wrap(action.yaw-state.yaw),angle=delta*180/Math.PI;

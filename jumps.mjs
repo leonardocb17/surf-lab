@@ -1,3 +1,4 @@
+import {timeScaleShortcut, timeScaleLabel} from './play-controls.mjs';
 import {createVelocityHUD} from './velocity-hud.mjs?v=20261102-telemetry';
 import {simulateJump,createStudyMap,heights,STOCK,SURF,BODY,TICK} from './jump-sim.mjs?v=20261102-telemetry';
 import {spawnPlayer,stepPlayer} from './goldsrc.mjs?v=20261102-telemetry';
@@ -97,10 +98,11 @@ $('train').onclick=async()=>{
 };
 document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement===$('manual-view')){manualActive=true;last=null;}else if(manualActive)endManual();});
 document.addEventListener('mousemove',e=>{if(manualActive){manual.state.yaw+=e.movementX*.0022;manual.state.pitch=Math.max(-1.55,Math.min(1.55,manual.state.pitch-e.movementY*.0022));}});
-document.addEventListener('keydown',e=>{if(!manualActive)return;if(e.code==='Escape'){endManual();return;}if(e.code==='KeyR'){resetManual();return;}if(['KeyW','KeyA','KeyS','KeyD','Space','ControlLeft','ControlRight'].includes(e.code)){e.preventDefault();held.add(e.code);if(e.code==='Space'&&!e.repeat)queuedJump=true;}});
+document.addEventListener('keydown',e=>{if(!manualActive)return;if(e.code==='Escape'){endManual();return;}if((e.code==='KeyR'||e.code==='Home')&&!e.repeat){e.preventDefault();resetManual();return;}const shortcut=timeScaleShortcut(e);if(shortcut){e.preventDefault();$('manual-rate').value=String(shortcut);return;}if(['KeyW','KeyA','KeyS','KeyD','Space','ControlLeft','ControlRight'].includes(e.code)){e.preventDefault();held.add(e.code);if(e.code==='Space'&&!e.repeat)queuedJump=true;}});
 document.addEventListener('keyup',e=>held.delete(e.code));window.addEventListener('blur',()=>{if(manualActive)endManual();});
 function manualFrame(dt){
-  const {renderer,camera,scene,state:s,map,THREE}=manual;manualAccumulator+=dt;
+  const {renderer,camera,scene,state:s,map,THREE}=manual;const rate=Number($('manual-rate').value);manualAccumulator+=dt*rate;
+  $('manual-rate-badge').textContent=`Tempo ${timeScaleLabel(rate)} · 1 / 2 / 3 / 4`;
   while(manualAccumulator>=TICK){const input={forward:Number(held.has('KeyW'))-Number(held.has('KeyS')),right:Number(held.has('KeyD'))-Number(held.has('KeyA')),jump:queuedJump||held.has('Space'),duck:held.has('ControlLeft')||held.has('ControlRight')};queuedJump=false;stepPlayer(s,input,map,TICK,configuration());s.peakFeet=Math.max(s.peakFeet,heights(s).feet);manualAccumulator-=TICK;}
   if(renderer.domElement.width!==Math.round(innerWidth*renderer.getPixelRatio())||renderer.domElement.height!==Math.round(innerHeight*renderer.getPixelRatio())){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
   camera.position.set(...toRenderPoint(s.x,s.y,s.z+s.eye));const d=toRenderForward(s.yaw,s.pitch);camera.lookAt(new THREE.Vector3(camera.position.x+d[0],camera.position.y+d[1],camera.position.z+d[2]));renderer.render(scene,camera);
@@ -109,5 +111,5 @@ function manualFrame(dt){
 }
 function frame(now){requestAnimationFrame(frame);const dt=last==null?0:Math.min(.05,(now-last)/1000);last=now;if(manualActive){manualFrame(dt);return;}if(playing){time=Math.min(Number($('timeline').max),time+dt*Number($('rate').value));if(time>=Number($('timeline').max))playing=false;paint();}}
 window.addEventListener('resize',paint);document.addEventListener('visibilitychange',()=>{if(document.hidden){playing=false;if(manualActive)endManual();}});
-window.jumpLab=Object.freeze({snapshot:()=>({mode,time,playing,focus,config:configuration(),cases:runs.map(({label,peakRise,peakFeet,range,duration,peakSpeed,takeoffSpeed})=>({label,peakRise,peakFeet,range,duration,peakSpeed,takeoffSpeed})),manualActive,pointerLocked:document.pointerLockElement===$('manual-view'),fullscreen:!!document.fullscreenElement,manual:manual?.state?{...manual.state,...heights(manual.state)}:null})});
+window.jumpLab=Object.freeze({snapshot:()=>({mode,time,playing,focus,config:configuration(),cases:runs.map(({label,peakRise,peakFeet,range,duration,peakSpeed,takeoffSpeed})=>({label,peakRise,peakFeet,range,duration,peakSpeed,takeoffSpeed})),manualActive,timeScale:Number($('manual-rate').value),pointerLocked:document.pointerLockElement===$('manual-view'),fullscreen:!!document.fullscreenElement,manual:manual?.state?{...manual.state,...heights(manual.state)}:null})});
 rebuild();requestAnimationFrame(frame);

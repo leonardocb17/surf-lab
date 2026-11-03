@@ -6,7 +6,7 @@
   <meta name="description" content="Treine grandes deslocamentos laterais no surf, com alvos dos dois lados, mapa da curva, demonstração e guia de A/D e mouse.">
   <title>Surf Lab · treino de movimento</title>
   <link rel="stylesheet" href="./style.css?v=20261028-arcos">
-<link rel="stylesheet" href="./navigation.css?v=20261102-telemetry"><link rel="stylesheet" href="./velocity-hud.css?v=20261102-telemetry"></head>
+<link rel="stylesheet" href="./navigation.css?v=20261103-controls"><link rel="stylesheet" href="./velocity-hud.css?v=20261103-controls"></head>
 <body>
   <main id="game">
     <canvas id="view" aria-label="Percurso de surf em primeira pessoa. Use A/D e mova o mouse livremente depois de iniciar."></canvas>
@@ -36,21 +36,22 @@
       <div class="speed-hud"><span id="speed">612</span><span class="speed-unit">u/s<small>horizontal</small></span><div id="vertical">↓ 150 u/s vertical</div></div>
       <div class="run-hud"><span class="eyebrow">PERCURSO</span><strong id="motion-label">Na rampa</strong><small id="checkpoint-label">R reinicia o checkpoint</small></div>
     </div>
-    <div class="keyboard-help">A / D · movimento <span>R · checkpoint</span><span>G · guia</span><span>H · técnicas</span><span>Esc · pausa</span></div>
+    <div class="keyboard-help">A / D · movimento <span>R · checkpoint</span><span>Home · voltar ao início</span><span>1 / 2 / 3 / 4 · velocidade</span><span>G · guia</span><span>H · técnicas</span><span>Esc · pausa</span></div>
     <section id="menu" class="menu" aria-label="Menu do treino">
       <div class="menu-content">
         <div class="menu-kicker" id="menu-kicker">ABISMO · VOO AVANÇADO</div>
         <h1>Encontre o<br><em>seu embalo.</em></h1>
         <p id="menu-copy">Olhe livremente com o mouse. Use A e D para conduzir a trajetória. O guia mostra uma previsão dos próximos movimentos.</p>
-        <div class="menu-actions"><button id="play" class="primary">Jogar em tela cheia <span>↗</span></button><button id="demo" class="secondary">Ver demonstração</button></div>
+        <div class="menu-actions"><button id="play" class="primary">Jogar em tela cheia <span>↗</span></button></div>
         <p class="error" id="error" role="alert" hidden></p>
         <div class="settings">
-          <label class="course-choice">Trocar de treino<select id="course-select"><optgroup label="Mapa original"><option value="ct">Guia CT e gabaritos</option><option value="ski2">surf_ski_2 livre</option></optgroup><optgroup label="Percursos de surf"><option value="basic">01 · Fundamentos</option><option value="abyss">02 · Abismo</option><option value="sky">03 · Voo livre</option><option value="lateral">04 · Arcos laterais</option></optgroup><optgroup label="Laboratórios"><option value="jumps">Laboratório do pulo</option></optgroup></select></label>
+          <label class="course-choice">Trocar de percurso<select id="course-select"><optgroup label="Percursos de surf"><option value="basic">01 · Fundamentos</option><option value="abyss">02 · Abismo</option><option value="sky">03 · Voo livre</option><option value="lateral">04 · Arcos laterais</option></optgroup></select></label>
           <label class="course-choice" id="destination-choice" hidden>Onde você quer pousar?<select id="destination"><option value="island">Ilha distante · cruzar o vale</option><option value="tower">Mirante · destino elevado</option><option value="coast">Costa remota · curva longa à esquerda</option></select></label>
-          <label>Ritmo<select id="rate"><option value="1">Normal · 1×</option><option value="0.5">Treino · 0,5×</option><option value="0.25">Detalhe · 0,25×</option></select></label>
+          <label>Ritmo<select id="rate"><option value="0.25">0,25×</option><option value="0.4">0,4×</option><option value="0.6">0,6×</option><option value="1" selected>1×</option></select></label>
           <label>Sensibilidade <output id="sensitivity-value">0,14° / px</output><input id="sensitivity" type="range" min="0.05" max="0.3" step="0.01" value="0.14"></label>
           <label class="check"><input id="guide-toggle" type="checkbox" checked> Mostrar guia e previsão</label>
         </div>
+        <details id="map-replays"><summary>Gabaritos</summary><button id="demo" class="secondary">Ver demonstração</button></details>
         <div class="flight-brief" id="flight-brief"><span>5 RAMPAS</span><span>VÃOS DE ATÉ 2.050 u</span><span>PARTIDA A 1.062 u/s</span></div>
         <div class="menu-controls"><span><kbd>A</kbd><kbd>D</kbd> movimento</span><span><kbd>R</kbd> checkpoint</span><span><kbd>Shift</kbd> + <kbd>R</kbd> início</span><span><kbd>Esc</kbd> soltar mouse</span></div>
         <div class="menu-bottom"><button id="restart" class="text-button">Recomeçar o percurso</button><span>Física simplificada do GoldSrc</span></div>
@@ -63,6 +64,6 @@
     <div id="toast" class="toast" role="status" hidden></div>
     <div id="loading" class="loading">Preparando o percurso…</div>
   </main>
-  <script type="module" src="./game.mjs?v=20261102-telemetry"></script>
-<script type="module" src="./navigation.mjs?v=20261102-telemetry"></script></body>
+  <script type="module" src="./game.mjs?v=20261103-controls"></script>
+<script type="module" src="./navigation.mjs?v=20261103-controls"></script></body>
 </html>
